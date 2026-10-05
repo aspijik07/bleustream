@@ -1,12 +1,27 @@
+import { defineConfig } from 'vite';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import { defineConfig } from 'vite';
+import fs from 'fs';
+
+function cloudflareSpaPlugin() {
+  return {
+    name: 'cloudflare-spa',
+    closeBundle() {
+      const dist = path.resolve(import.meta.dirname, 'dist');
+      const indexHtml = path.join(dist, 'index.html');
+      if (fs.existsSync(indexHtml)) {
+        fs.copyFileSync(indexHtml, path.join(dist, '200.html'));
+        fs.copyFileSync(indexHtml, path.join(dist, '404.html'));
+      }
+    },
+  };
+}
 
 export default defineConfig(() => {
   return {
     base: '/',
-    plugins: [react(), tailwindcss()],
+    plugins: [react(), tailwindcss(), cloudflareSpaPlugin()],
     resolve: {
       alias: {
         '@': path.resolve(import.meta.dirname, '.'),
