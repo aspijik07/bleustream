@@ -20,13 +20,16 @@ const getLockerUrl = (idOrUrl: string) => {
   return `https://appsave.online/cl/v/${clean}`;
 };
 
+// Always read fresh lockerId from config, never cache stale value
+const getFreshLockerId = (): string => {
+  const id = lockerConfig.get().lockerId?.trim();
+  return (id && id !== 'o4e5p2') ? id : '4o7vvr';
+};
+
 export const LockerModal: React.FC<LockerModalProps> = ({ mediaId, onUnlocked }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(() => isMobileDevice());
-  const [activeLockerId, setActiveLockerId] = useState<string>(() => {
-    const id = lockerConfig.get().lockerId?.trim();
-    return (id && id !== 'o4e5p2') ? id : '4o7vvr';
-  });
+  const [activeLockerId, setActiveLockerId] = useState<string>(getFreshLockerId);
   const [isSuccess, setIsSuccess] = useState(false);
   const [hasInteractedWithOffer, setHasInteractedWithOffer] = useState(false);
   const iframeLoadCountRef = useRef(0);
@@ -43,8 +46,7 @@ export const LockerModal: React.FC<LockerModalProps> = ({ mediaId, onUnlocked })
     const unsubModal = subscribeToLockerModal((open) => {
       if (open) {
         // ALWAYS dynamically re-fetch the exact lockerId from Admin Panel configuration
-        const cfgId = lockerConfig.get().lockerId?.trim();
-        const latestId = (cfgId && cfgId !== 'o4e5p2') ? cfgId : '4o7vvr';
+        const latestId = getFreshLockerId();
         setActiveLockerId(latestId);
         setIsSuccess(false);
         setHasInteractedWithOffer(false);
@@ -54,10 +56,10 @@ export const LockerModal: React.FC<LockerModalProps> = ({ mediaId, onUnlocked })
     });
 
     const unsubConfig = lockerConfig.subscribe((cfg) => {
-      if (cfg.lockerId) {
-        const id = cfg.lockerId.trim();
-        setActiveLockerId(id && id !== 'o4e5p2' ? id : '4o7vvr');
-      }
+      // Update whenever admin changes locker ID - always respect their choice
+      const id = cfg.lockerId?.trim();
+      const resolvedId = (id && id !== 'o4e5p2') ? id : '4o7vvr';
+      setActiveLockerId(resolvedId);
     });
 
     return () => {

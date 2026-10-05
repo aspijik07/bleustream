@@ -95,7 +95,10 @@ class LockerConfigService {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        const resolvedId = (parsed.lockerId && parsed.lockerId !== 'o4e5p2') ? parsed.lockerId : '4o7vvr';
+        // Respect whatever lockerId was saved by admin - never override with old perkvex ID
+        const resolvedId = (parsed.lockerId && parsed.lockerId.trim() && parsed.lockerId !== 'o4e5p2') 
+          ? parsed.lockerId.trim() 
+          : DEFAULT_CONFIG.lockerId;
         return {
           ...DEFAULT_CONFIG,
           ...parsed,
@@ -104,35 +107,37 @@ class LockerConfigService {
             ...DEFAULT_ADBLUEMEDIA_CONFIG,
             ...(parsed.adBlueMedia || {}),
           },
-          delaySeconds: typeof parsed.delaySeconds === 'number' ? parsed.delaySeconds : 15,
+          delaySeconds: typeof parsed.delaySeconds === 'number' ? parsed.delaySeconds : DEFAULT_CONFIG.delaySeconds,
         };
       }
 
-      // Check legacy v2
+      // Check legacy v2 - never use o4e5p2 as fallback
       const legacyV2 = localStorage.getItem('perkvex_locker_config_v2');
       if (legacyV2) {
         const parsed = JSON.parse(legacyV2);
+        const legacyId = (parsed.lockerId && parsed.lockerId !== 'o4e5p2') ? parsed.lockerId : DEFAULT_CONFIG.lockerId;
         return {
           ...DEFAULT_CONFIG,
           enabled: parsed.enabled ?? true,
-          delaySeconds: parsed.delaySeconds ?? 15,
-          lockerId: parsed.lockerId || 'o4e5p2',
+          delaySeconds: parsed.delaySeconds ?? DEFAULT_CONFIG.delaySeconds,
+          lockerId: legacyId,
         };
       }
 
-      // Check legacy flixstream_settings
+      // Check legacy flixstream_settings - never use o4e5p2 as fallback
       const legacy = localStorage.getItem('flixstream_settings');
       if (legacy) {
         const parsed = JSON.parse(legacy);
+        const legacyId = (parsed.lockerId && parsed.lockerId !== 'o4e5p2') ? parsed.lockerId : DEFAULT_CONFIG.lockerId;
         return {
           ...DEFAULT_CONFIG,
           enabled: parsed.lockerEnabled ?? true,
-          delaySeconds: parsed.lockerDelaySeconds ?? 15,
-          lockerId: parsed.lockerId || 'o4e5p2',
+          delaySeconds: parsed.lockerDelaySeconds ?? DEFAULT_CONFIG.delaySeconds,
+          lockerId: legacyId,
         };
       }
     } catch {
-      // fallback
+      // fallback to default
     }
     return DEFAULT_CONFIG;
   }
@@ -223,5 +228,5 @@ export const lockerConfig = new LockerConfigService();
 
 export const getEffectiveMobileLockerId = (cfg?: LockerConfig): string => {
   const current = cfg || lockerConfig.get();
-  return current.lockerId?.trim() || 'o4e5p2';
+  return current.lockerId?.trim() || DEFAULT_CONFIG.lockerId;
 };

@@ -30,7 +30,7 @@ declare global {
   }
 }
 
-// Get currently configured OGAds locker ID
+// Get currently configured OGAds locker ID - always reads fresh from admin config
 export const getActiveLockerId = (): string => {
   const id = lockerConfig.get().lockerId?.trim();
   return (id && id !== 'o4e5p2') ? id : '4o7vvr';

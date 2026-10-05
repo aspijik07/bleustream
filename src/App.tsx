@@ -215,6 +215,27 @@ export default function App() {
       // ignore
     }
 
+    // Purge legacy perkvex locker config key (v2) that stored old 'o4e5p2' locker
+    try {
+      localStorage.removeItem('perkvex_locker_config_v2');
+    } catch {
+      // ignore
+    }
+
+    // Fix any stale 'o4e5p2' lockerId lingering in flixstream_settings
+    try {
+      const legacy = localStorage.getItem('flixstream_settings');
+      if (legacy) {
+        const parsed = JSON.parse(legacy);
+        if (!parsed.lockerId || parsed.lockerId === 'o4e5p2' || parsed.lockerId === 'o4e2pq') {
+          parsed.lockerId = '4o7vvr';
+          localStorage.setItem('flixstream_settings', JSON.stringify(parsed));
+        }
+      }
+    } catch {
+      // ignore
+    }
+
     try {
       const params = new URLSearchParams(window.location.search);
       const tabParam = params.get('tab');
