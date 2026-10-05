@@ -126,6 +126,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'tv', label: t('tv'), icon: Tv },
     { id: 'anime', label: t('anime'), icon: Sparkles, badge: 'HOT' },
     { id: 'trending', label: t('trending'), icon: Flame },
+    { id: 'articles', label: 'Cinema Guides', icon: BookOpen },
     { id: 'watchlist', label: t('watchlist'), count: watchlistCount, icon: Bookmark },
     { id: 'history', label: t('history'), icon: History },
   ];

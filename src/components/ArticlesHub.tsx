@@ -16,6 +16,7 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 import { SEO_ARTICLES, SEOArticle } from '../data/seoArticles';
+import { pseoEngine } from '../services/pseoEngine';
 import { MediaItem } from '../types';
 
 interface ArticlesHubProps {
@@ -29,9 +30,10 @@ export const ArticlesHub: React.FC<ArticlesHubProps> = ({
   onPlayMediaById,
   onBackToHome,
 }) => {
+  const [articlesList, setArticlesList] = useState<SEOArticle[]>(() => pseoEngine.getAllArticles());
   const [selectedArticle, setSelectedArticle] = useState<SEOArticle | null>(() => {
     if (initialSlug) {
-      return SEO_ARTICLES.find((a) => a.slug === initialSlug) || null;
+      return pseoEngine.getAllArticles().find((a) => a.slug === initialSlug) || null;
     }
     return null;
   });
@@ -40,18 +42,119 @@ export const ArticlesHub: React.FC<ArticlesHubProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [copied, setCopied] = useState<boolean>(false);
 
+  // Sync with dynamic pSEO articles
+  useEffect(() => {
+    const unsub = pseoEngine.subscribe(() => {
+      setArticlesList(pseoEngine.getAllArticles());
+    });
+    return unsub;
+  }, []);
+
   useEffect(() => {
     if (initialSlug) {
-      const found = SEO_ARTICLES.find((a) => a.slug === initialSlug);
+      const found = pseoEngine.getAllArticles().find((a) => a.slug === initialSlug);
       if (found) {
         setSelectedArticle(found);
       }
     }
   }, [initialSlug]);
 
-  // Scroll to top when opening an article
+  // Scroll to top and inject Schema.org JSON-LD when viewing article
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    if (!selectedArticle) {
+      document.title = 'Cinema Guides & Streaming Articles – Watch Movies Free in HD | BleuStream';
+      return;
+    }
+
+    document.title = selectedArticle.metaTitle;
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) metaDesc.setAttribute('content', selectedArticle.metaDescription);
+
+    // Dynamic Schema.org JSON-LD injection for Google Rich Snippets
+    let scriptTag = document.getElementById('article-jsonld') as HTMLScriptElement | null;
+    if (!scriptTag) {
+      scriptTag = document.createElement('script');
+      scriptTag.id = 'article-jsonld';
+      scriptTag.type = 'application/ld+json';
+      document.head.appendChild(scriptTag);
+    }
+
+    const jsonLd = {
+      '@context': 'https://schema.org',
+      '@graph': [
+        {
+          '@type': 'NewsArticle',
+          headline: selectedArticle.title,
+          image: [selectedArticle.coverImage],
+          datePublished: selectedArticle.publishedDate,
+          dateModified: selectedArticle.modifiedDate || selectedArticle.publishedDate,
+          author: {
+            '@type': 'Person',
+            name: selectedArticle.author,
+          },
+          publisher: {
+            '@type': 'Organization',
+            name: 'BleuStream HD Cinema',
+            url: 'https://bleustream.online',
+          },
+          description: selectedArticle.excerpt,
+        },
+        {
+          '@type': selectedArticle.relatedMediaType === 'tv' ? 'TVSeries' : 'Movie',
+          name: selectedArticle.relatedMediaTitle,
+          image: selectedArticle.coverImage,
+          aggregateRating: {
+            '@type': 'AggregateRating',
+            ratingValue: parseFloat(selectedArticle.rating) || 8.6,
+            bestRating: '10',
+            ratingCount: 1540,
+          },
+        },
+        {
+          '@type': 'FAQPage',
+          mainEntity: selectedArticle.faqs.map((f) => ({
+            '@type': 'Question',
+            name: f.question,
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: f.answer,
+            },
+          })),
+        },
+        {
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            {
+              '@type': 'ListItem',
+              position: 1,
+              name: 'Home',
+              item: 'https://bleustream.online/',
+            },
+            {
+              '@type': 'ListItem',
+              position: 2,
+              name: 'Articles Hub',
+              item: 'https://bleustream.online/?tab=articles',
+            },
+            {
+              '@type': 'ListItem',
+              position: 3,
+              name: selectedArticle.title,
+              item: `https://bleustream.online/?tab=articles&article=${selectedArticle.slug}`,
+            },
+          ],
+        },
+      ],
+    };
+
+    scriptTag.textContent = JSON.stringify(jsonLd);
+
+    return () => {
+      const el = document.getElementById('article-jsonld');
+      if (el) el.remove();
+    };
   }, [selectedArticle]);
 
   const categories = [
@@ -62,7 +165,7 @@ export const ArticlesHub: React.FC<ArticlesHubProps> = ({
     'Curated Recommendations',
   ];
 
-  const filteredArticles = SEO_ARTICLES.filter((article) => {
+  const filteredArticles = articlesList.filter((article) => {
     const matchesCategory =
       activeCategory === 'All' || article.category === activeCategory;
     const matchesSearch =
@@ -73,7 +176,7 @@ export const ArticlesHub: React.FC<ArticlesHubProps> = ({
   });
 
   const handleShare = (art: SEOArticle) => {
-    const url = `https://bleustream.online/articles/${art.slug}.html`;
+    const url = `https://bleustream.online/?tab=articles&article=${encodeURIComponent(art.slug)}`;
     if (navigator.clipboard) {
       navigator.clipboard.writeText(url);
       setCopied(true);

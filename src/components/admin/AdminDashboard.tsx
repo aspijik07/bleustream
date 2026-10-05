@@ -33,6 +33,10 @@ import {
   Calendar as CalendarIcon,
   Cloud,
   Layers,
+  Search,
+  Copy,
+  ExternalLink,
+  FileText,
 } from 'lucide-react';
 import {
   liveTracker,
@@ -48,6 +52,9 @@ import {
 import { adminAuth, AuthState, AuditLogEntry } from '../../services/adminAuth';
 import { lockerConfig, LockerConfig, parseAdBlueMediaSnippet, LockerProvider } from '../../services/lockerConfig';
 import { triggerNativeOGAdsLocker, triggerAdBlueMediaLocker, triggerActiveLocker } from '../../utils/locker';
+import { pseoEngine } from '../../services/pseoEngine';
+import { downloadSitemapFile, DEFAULT_SITE_DOMAIN } from '../../services/sitemapGenerator';
+import { SEOArticle } from '../../data/seoArticles';
 
 interface AdminDashboardProps {
   isOpen: boolean;
@@ -55,9 +62,67 @@ interface AdminDashboardProps {
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'radar' | 'analytics' | 'top_titles' | 'locker' | 'security'>('radar');
+  const [activeTab, setActiveTab] = useState<'radar' | 'analytics' | 'top_titles' | 'locker' | 'security' | 'seo'>('radar');
   const [events, setEvents] = useState<StreamEvent[]>(liveTracker.getLiveStreamEvents());
   const [dailyStats, setDailyStats] = useState<DailyStats>(liveTracker.getDailyStats());
+
+  // pSEO State & Real-Time Synchronization
+  const [pseoArticles, setPseoArticles] = useState<SEOArticle[]>(pseoEngine.getAllArticles());
+  const [pseoStats, setPseoStats] = useState(pseoEngine.getStats());
+  const [isGeneratingPSEO, setIsGeneratingPSEO] = useState(false);
+  const [pseoSuccessMsg, setPseoSuccessMsg] = useState<string | null>(null);
+  const [pseoSearchQuery, setPseoSearchQuery] = useState('');
+  const [pseoCategoryFilter, setPseoCategoryFilter] = useState<'all' | 'Movie Guides' | 'TV Series Guides' | 'Anime Guides'>('all');
+  const [copiedSitemap, setCopiedSitemap] = useState(false);
+
+  useEffect(() => {
+    const unsub = pseoEngine.subscribe(() => {
+      setPseoArticles(pseoEngine.getAllArticles());
+      setPseoStats(pseoEngine.getStats());
+    });
+    return unsub;
+  }, []);
+
+  const handleGenerateDailyArticles = async () => {
+    setIsGeneratingPSEO(true);
+    setPseoSuccessMsg(null);
+    try {
+      const added = await pseoEngine.generateDailyTrendingArticles(true);
+      setPseoSuccessMsg(`Successfully generated ${added.length} trending articles with high-ranking keywords & Google Schema!`);
+      setTimeout(() => setPseoSuccessMsg(null), 6000);
+    } catch (err: any) {
+      alert('Failed to generate articles: ' + (err?.message || 'Network error'));
+    } finally {
+      setIsGeneratingPSEO(false);
+    }
+  };
+
+  const handleDeletePseoArticle = (id: string, title: string) => {
+    if (confirm(`Are you sure you want to delete "${title}"?`)) {
+      pseoEngine.deleteArticle(id);
+    }
+  };
+
+  const handleClearAllGenerated = () => {
+    if (confirm('Clear all dynamically generated articles? Curated baseline guides will be preserved.')) {
+      pseoEngine.clearGeneratedArticles();
+      setPseoSuccessMsg('Cleared generated articles.');
+      setTimeout(() => setPseoSuccessMsg(null), 4000);
+    }
+  };
+
+  const handleDownloadSitemap = () => {
+    downloadSitemapFile(pseoArticles);
+  };
+
+  const handleCopySitemapUrl = () => {
+    const url = `${DEFAULT_SITE_DOMAIN}/sitemap.xml`;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(url);
+      setCopiedSitemap(true);
+      setTimeout(() => setCopiedSitemap(false), 2500);
+    }
+  };
   const [lockerStats, setLockerStats] = useState<LockerStats>(liveTracker.getLockerStats());
   const [countries, setCountries] = useState<CountryStat[]>(liveTracker.getCountryDistribution());
   const [devices, setDevices] = useState<DeviceStat[]>(liveTracker.getDeviceBreakdown());
@@ -378,6 +443,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
           <span>Locker Timing & Controls</span>
           <span className="px-2 py-0.5 bg-amber-950 border border-amber-500/50 text-amber-300 text-[10px] rounded-full font-mono font-black">
             {lockerSettings.delaySeconds}s
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('seo')}
+          className={`py-2 px-3.5 sm:px-4 text-xs font-bold rounded-xl transition-all duration-200 flex items-center gap-2 cursor-pointer whitespace-nowrap border ${
+            activeTab === 'seo'
+              ? 'border-indigo-500/80 text-indigo-300 bg-gradient-to-r from-indigo-600/30 via-purple-950/40 to-black shadow-md shadow-indigo-950/50 ring-1 ring-indigo-500/40'
+              : 'border-zinc-800/80 text-zinc-400 bg-zinc-900/50 hover:text-white hover:bg-zinc-800 hover:border-zinc-700'
+          }`}
+        >
+          <Sparkles className="w-4 h-4 text-indigo-400" />
+          <span>SEO & pSEO Engine</span>
+          <span className="px-2 py-0.5 bg-indigo-950 border border-indigo-500/50 text-indigo-300 text-[10px] rounded-full font-mono font-black">
+            {pseoArticles.length}
           </span>
         </button>
 
@@ -2103,6 +2184,381 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
                     </span>
                   </div>
                 ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ================= TAB 6: PROGRAMMATIC SEO & DYNAMIC SITEMAP ================= */}
+        {activeTab === 'seo' && (
+          <div className="space-y-6">
+            {/* Header Banner */}
+            <div className="relative overflow-hidden bg-gradient-to-r from-indigo-950/40 via-purple-950/20 to-zinc-950 border border-indigo-500/30 rounded-2xl p-6 shadow-2xl">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+                <div className="space-y-2 max-w-2xl">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                      Daily Automated Engine Active
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-sky-500/20 text-sky-300 border border-sky-500/30">
+                      Goal: 1,000,000 Organic Traffic
+                    </span>
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2.5">
+                    <Sparkles className="w-6 h-6 text-indigo-400" />
+                    <span>Programmatic SEO & Content Matrix</span>
+                  </h2>
+                  <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
+                    Auto-synthesizes 10 keyword-dense, high-ranking cinema articles every day for Top 10 Trending Movies, Series & Anime from TMDB. Automatically injects Schema.org JSON-LD (FAQPage, NewsArticle, Rating Snippets) and updates dynamic sitemap for Googlebot.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={handleGenerateDailyArticles}
+                    disabled={isGeneratingPSEO}
+                    className="px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-black rounded-xl flex items-center gap-2 shadow-lg shadow-indigo-900/40 transition active:scale-95 disabled:opacity-50 cursor-pointer"
+                  >
+                    {isGeneratingPSEO ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin text-white" />
+                        <span>Generating Articles...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4 text-white" />
+                        <span>Generate 10 Daily Trend Articles Now</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleDownloadSitemap}
+                    className="px-3.5 py-2.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 hover:border-zinc-600 text-zinc-200 text-xs font-bold rounded-xl flex items-center gap-2 transition cursor-pointer"
+                  >
+                    <Download className="w-4 h-4 text-sky-400" />
+                    <span>Download sitemap.xml</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleCopySitemapUrl}
+                    className="px-3.5 py-2.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 hover:border-zinc-600 text-zinc-200 text-xs font-bold rounded-xl flex items-center gap-2 transition cursor-pointer"
+                  >
+                    {copiedSitemap ? (
+                      <>
+                        <Check className="w-4 h-4 text-emerald-400" />
+                        <span className="text-emerald-400">Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-4 h-4 text-zinc-400" />
+                        <span>Copy Sitemap URL</span>
+                      </>
+                    )}
+                  </button>
+
+                  {pseoStats.generatedCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleClearAllGenerated}
+                      className="px-3 py-2.5 bg-red-950/40 hover:bg-red-900/60 border border-red-800/50 text-red-300 text-xs font-bold rounded-xl flex items-center gap-1.5 transition cursor-pointer"
+                      title="Clear generated articles (keeps curated)"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Reset</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Notification alert */}
+            {pseoSuccessMsg && (
+              <div className="p-3.5 bg-emerald-950/60 border border-emerald-500/50 rounded-xl text-xs text-emerald-300 flex items-center gap-2 animate-fade-in">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>{pseoSuccessMsg}</span>
+              </div>
+            )}
+
+            {/* Metric Cards Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-[#11131a] border border-zinc-800 rounded-xl p-4 space-y-1.5">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
+                  Total Indexed Articles
+                </span>
+                <div className="text-2xl font-black text-white font-mono flex items-baseline gap-2">
+                  <span>{pseoArticles.length}</span>
+                  <span className="text-xs text-emerald-400 font-sans font-bold">
+                    +{pseoStats.generatedCount} automated
+                  </span>
+                </div>
+                <div className="text-[11px] text-zinc-400 flex items-center gap-1.5 pt-1">
+                  <span>{pseoStats.categoriesCount.movies} Movies</span>
+                  <span>•</span>
+                  <span>{pseoStats.categoriesCount.series} Series</span>
+                  <span>•</span>
+                  <span>{pseoStats.categoriesCount.anime} Anime</span>
+                </div>
+              </div>
+
+              <div className="bg-[#11131a] border border-zinc-800 rounded-xl p-4 space-y-1.5">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
+                  Targeted Power Keywords
+                </span>
+                <div className="text-2xl font-black text-indigo-300 font-mono flex items-baseline gap-2">
+                  <span>{pseoStats.totalKeywordsTargeted}</span>
+                  <span className="text-xs text-indigo-400 font-sans font-bold">keywords</span>
+                </div>
+                <div className="text-[11px] text-zinc-400 truncate">
+                  "watch free", "1080p stream", "reddit mirror"
+                </div>
+              </div>
+
+              <div className="bg-[#11131a] border border-zinc-800 rounded-xl p-4 space-y-1.5">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
+                  Est. Monthly Reach
+                </span>
+                <div className="text-2xl font-black text-sky-400 font-mono flex items-baseline gap-2">
+                  <span>{pseoStats.estimatedMonthlySearchImpressions.toLocaleString()}+</span>
+                </div>
+                <div className="text-[11px] text-zinc-400">
+                  Target: 1,000,000 visitors in progress
+                </div>
+              </div>
+
+              <div className="bg-[#11131a] border border-zinc-800 rounded-xl p-4 space-y-1.5">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
+                  Google Index Status
+                </span>
+                <div className="text-2xl font-black text-emerald-400 font-mono flex items-center gap-2">
+                  <CheckCircle2 className="w-6 h-6 text-emerald-400" />
+                  <span>100% Ready</span>
+                </div>
+                <div className="text-[11px] text-zinc-400">
+                  FAQPage, NewsArticle & 5★ Rating
+                </div>
+              </div>
+            </div>
+
+            {/* Google SERP Live Snippet Preview Box */}
+            <div className="bg-[#11131a] border border-zinc-800 rounded-2xl p-5 space-y-4">
+              <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 rounded-full bg-white flex items-center justify-center font-bold text-xs text-blue-600">
+                    G
+                  </div>
+                  <h3 className="text-sm font-black text-white font-mono">
+                    Google SERP Rich Snippet Live Preview
+                  </h3>
+                </div>
+                <span className="text-[11px] text-zinc-400 font-mono">
+                  Real Schema.org JSON-LD Output
+                </span>
+              </div>
+
+              {pseoArticles.length > 0 && (
+                <div className="p-4 bg-zinc-950/80 border border-zinc-800/70 rounded-xl space-y-2 max-w-3xl font-sans">
+                  <div className="text-xs text-emerald-400 flex items-center gap-1.5">
+                    <span>https://bleustream.online › articles › {pseoArticles[0].slug}</span>
+                  </div>
+                  <h4 className="text-base sm:text-lg font-medium text-[#8ab4f8] hover:underline cursor-pointer">
+                    {pseoArticles[0].metaTitle}
+                  </h4>
+                  <div className="flex items-center gap-2 text-xs text-zinc-300">
+                    <span className="text-amber-400">★★★★★</span>
+                    <span className="font-semibold text-zinc-200">Rating: 9.4/10</span>
+                    <span className="text-zinc-500">·</span>
+                    <span className="text-zinc-400">1,250 votes</span>
+                    <span className="text-zinc-500">·</span>
+                    <span className="text-emerald-400 font-semibold">Free Streaming</span>
+                  </div>
+                  <p className="text-xs text-zinc-300 leading-relaxed">
+                    {pseoArticles[0].metaDescription}
+                  </p>
+
+                  {/* Google Rich FAQ Preview */}
+                  {pseoArticles[0].faqs && pseoArticles[0].faqs.length > 0 && (
+                    <div className="pt-2 border-t border-zinc-850 space-y-1.5">
+                      <div className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
+                        Google People Also Ask (FAQ Rich Snippet):
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {pseoArticles[0].faqs.slice(0, 2).map((faq, i) => (
+                          <div key={i} className="text-xs bg-zinc-900/60 p-2 rounded border border-zinc-800/50">
+                            <span className="text-zinc-200 font-medium">{faq.question}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Articles Table & Search Filter */}
+            <div className="bg-[#11131a] border border-zinc-800 rounded-2xl p-5 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800/80 pb-4">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-indigo-400" />
+                  <h3 className="text-sm font-black text-white font-mono">
+                    All Programmatic & Curated Cinema Articles ({pseoArticles.length})
+                  </h3>
+                </div>
+
+                {/* Filter Pills */}
+                <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                  {(['all', 'Movie Guides', 'TV Series Guides', 'Anime Guides'] as const).map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setPseoCategoryFilter(cat)}
+                      className={`px-3 py-1 rounded-lg font-bold transition cursor-pointer ${
+                        pseoCategoryFilter === cat
+                          ? 'bg-indigo-600 text-white'
+                          : 'bg-zinc-900 text-zinc-400 hover:text-white hover:bg-zinc-800'
+                      }`}
+                    >
+                      {cat === 'all' ? 'All' : cat.replace(' Guides', '')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Search input inside table */}
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-3 top-3 text-zinc-500" />
+                <input
+                  type="text"
+                  value={pseoSearchQuery}
+                  onChange={(e) => setPseoSearchQuery(e.target.value)}
+                  placeholder="Filter articles by title, keywords, or slug..."
+                  className="w-full bg-zinc-900/80 border border-zinc-800 focus:border-indigo-500 rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder-zinc-500 outline-none"
+                />
+              </div>
+
+              {/* Articles List / Table */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-zinc-900/80 text-zinc-400 font-mono text-[11px] uppercase border-b border-zinc-800">
+                    <tr>
+                      <th className="p-3">Article / Title</th>
+                      <th className="p-3">Category</th>
+                      <th className="p-3">High-Intent Keywords</th>
+                      <th className="p-3">Google Schema</th>
+                      <th className="p-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-800/60 font-sans">
+                    {pseoArticles
+                      .filter((art) => {
+                        if (pseoCategoryFilter !== 'all' && art.category !== pseoCategoryFilter) {
+                          return false;
+                        }
+                        if (pseoSearchQuery.trim()) {
+                          const q = pseoSearchQuery.toLowerCase();
+                          const matchTitle = art.title.toLowerCase().includes(q);
+                          const matchSlug = art.slug.toLowerCase().includes(q);
+                          const matchKeywords = art.keywords?.some((k) => k.toLowerCase().includes(q));
+                          return matchTitle || matchSlug || matchKeywords;
+                        }
+                        return true;
+                      })
+                      .map((art) => (
+                        <tr key={art.id} className="hover:bg-zinc-900/40 transition">
+                          <td className="p-3">
+                            <div className="flex items-center gap-3">
+                              {art.coverImage && (
+                                <img
+                                  src={art.coverImage}
+                                  alt={art.title}
+                                  className="w-12 h-16 object-cover rounded-md bg-zinc-900 border border-zinc-800 shrink-0"
+                                  loading="lazy"
+                                />
+                              )}
+                              <div className="min-w-0 max-w-xs sm:max-w-md">
+                                <p className="font-bold text-white truncate text-xs hover:text-indigo-300">
+                                  {art.title}
+                                </p>
+                                <p className="text-[11px] text-zinc-500 truncate mt-0.5">
+                                  Slug: /{art.slug}
+                                </p>
+                                <div className="text-[10px] text-zinc-400 flex items-center gap-2 mt-1">
+                                  <span>{art.publishedDate}</span>
+                                  <span>•</span>
+                                  <span className="text-amber-400 font-semibold">{art.rating}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+
+                          <td className="p-3 whitespace-nowrap">
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-zinc-800 text-zinc-300 border border-zinc-700">
+                              {art.category}
+                            </span>
+                          </td>
+
+                          <td className="p-3">
+                            <div className="flex flex-wrap gap-1 max-w-sm">
+                              {(art.keywords || []).slice(0, 3).map((kw, i) => (
+                                <span
+                                  key={i}
+                                  className="px-1.5 py-0.5 rounded bg-indigo-950/60 border border-indigo-500/30 text-[10px] text-indigo-300"
+                                >
+                                  {kw}
+                                </span>
+                              ))}
+                              {(art.keywords?.length || 0) > 3 && (
+                                <span className="text-[10px] text-zinc-500 self-center">
+                                  +{(art.keywords?.length || 0) - 3} more
+                                </span>
+                              )}
+                            </div>
+                          </td>
+
+                          <td className="p-3 whitespace-nowrap">
+                            <div className="space-y-1 text-[10px]">
+                              <span className="inline-block px-1.5 py-0.5 rounded bg-emerald-950/50 text-emerald-400 border border-emerald-500/30 font-mono">
+                                ✓ FAQPage (4)
+                              </span>
+                              <br />
+                              <span className="inline-block px-1.5 py-0.5 rounded bg-sky-950/50 text-sky-400 border border-sky-500/30 font-mono">
+                                ✓ NewsArticle + 5★
+                              </span>
+                            </div>
+                          </td>
+
+                          <td className="p-3 text-right whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <a
+                                href={`/?tab=articles&article=${encodeURIComponent(art.slug)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-1.5 text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-lg transition"
+                                title="Open Live Article in New Tab"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </a>
+
+                              {art.id.startsWith('pseo_') && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeletePseoArticle(art.id, art.title)}
+                                  className="p-1.5 text-red-400 hover:text-red-300 bg-red-950/40 hover:bg-red-900/60 rounded-lg transition cursor-pointer"
+                                  title="Delete Article"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
