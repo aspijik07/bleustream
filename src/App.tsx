@@ -115,7 +115,7 @@ export default function App() {
       const saved = localStorage.getItem('flixstream_settings');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed.lockerId === 'o4e2pq') parsed.lockerId = 'o4e5p2';
+        if (parsed.lockerId === 'o4e2pq' || parsed.lockerId === 'o4e5p2') parsed.lockerId = '4o7vvr';
         return parsed;
       }
     } catch {
@@ -124,7 +124,7 @@ export default function App() {
     return {
       tmdbApiKey: DEFAULT_TMDB_API_KEY,
       lockerEnabled: true,
-      lockerId: 'o4e5p2',
+      lockerId: '4o7vvr',
       lockerDelaySeconds: 20,
     };
   });

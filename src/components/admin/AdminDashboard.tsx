@@ -1742,11 +1742,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
                       setLockerSettings(next);
                       lockerConfig.updateConfig(next);
                     }}
-                    placeholder="Enter your OGAds Locker ID (e.g. o4e5p2)"
+                    placeholder="Enter your OGAds Locker ID (e.g. 4o7vvr) or Direct URL"
                     className="w-full bg-black/60 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-amber-400 font-mono focus:outline-none focus:border-amber-500 font-bold tracking-wider"
                   />
                   <div className="text-[10px] font-mono text-zinc-500 bg-black/40 p-2 rounded border border-zinc-800/80">
-                    Active URL: <span className="text-emerald-400">https://appsave.online/cl/v/{lockerSettings.lockerId}</span>
+                    Active URL: <span className="text-emerald-400">{lockerSettings.lockerId?.startsWith('http') ? lockerSettings.lockerId : `https://appsave.online/cl/v/${lockerSettings.lockerId || '4o7vvr'}`}</span>
                   </div>
                 </div>
               )}

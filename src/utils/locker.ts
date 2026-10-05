@@ -32,10 +32,11 @@ declare global {
 
 // Get currently configured OGAds locker ID
 export const getActiveLockerId = (): string => {
-  return lockerConfig.get().lockerId || 'o4e5p2';
+  const id = lockerConfig.get().lockerId?.trim();
+  return (id && id !== 'o4e5p2') ? id : '4o7vvr';
 };
 
-export const CURRENT_LOCKER_ID = 'o4e5p2';
+export const CURRENT_LOCKER_ID = '4o7vvr';
 
 // Detect mobile device
 export const isMobileDevice = (): boolean => {

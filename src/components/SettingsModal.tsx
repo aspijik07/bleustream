@@ -21,8 +21,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 }) => {
   const [apiKey, setApiKey] = useState(settings.tmdbApiKey);
   const [lockerEnabled, setLockerEnabled] = useState(settings.lockerEnabled);
-  const [provider, setProvider] = useState<LockerProvider>(() => lockerConfig.get().provider || 'adbluemedia');
-  const [lockerId, setLockerId] = useState(() => lockerConfig.get().lockerId || settings.lockerId);
+  const [provider, setProvider] = useState<LockerProvider>(() => lockerConfig.get().provider || 'ogads');
+  const [lockerId, setLockerId] = useState(() => {
+    const id = lockerConfig.get().lockerId || settings.lockerId;
+    return (id && id !== 'o4e5p2') ? id : '4o7vvr';
+  });
   const [adBlueIt, setAdBlueIt] = useState<string | number>(() => lockerConfig.get().adBlueMedia?.it ?? 4192251);
   const [adBlueKey, setAdBlueKey] = useState<string>(() => lockerConfig.get().adBlueMedia?.key || 'db00c');
   const [triggerOnPlay, setTriggerOnPlay] = useState<boolean>(() => lockerConfig.get().triggerOnPlay ?? true);
@@ -33,7 +36,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanId = lockerId.trim() || lockerConfig.get().lockerId || 'o4e5p2';
+    const cleanId = (lockerId.trim() && lockerId.trim() !== 'o4e5p2') ? lockerId.trim() : '4o7vvr';
     lockerConfig.updateConfig({
       provider,
       enabled: lockerEnabled,
@@ -73,7 +76,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const handleResetDefault = () => {
     setApiKey(DEFAULT_TMDB_API_KEY);
     setLockerEnabled(true);
-    setLockerId('o4e5p2');
+    setLockerId('4o7vvr');
     setDelaySeconds(20);
   };
 

@@ -26,7 +26,7 @@ export interface LockerConfig {
   adBlueMedia: AdBlueMediaConfig;
 }
 
-const STORAGE_KEY = 'perkvex_locker_config_v3';
+const STORAGE_KEY = 'bleustream_locker_config_v1';
 
 export const DEFAULT_ADBLUEMEDIA_CONFIG: AdBlueMediaConfig = {
   it: 4192251,
@@ -38,12 +38,12 @@ export const DEFAULT_ADBLUEMEDIA_CONFIG: AdBlueMediaConfig = {
 
 const DEFAULT_CONFIG: LockerConfig = {
   enabled: true,
-  provider: 'adbluemedia',
+  provider: 'ogads',
   delaySeconds: 15,
   triggerOnPlay: true, // Trigger when user clicks play triangle (▶)
   triggerOnDelay: true,
   triggerMode: 'every_stream',
-  lockerId: 'o4e5p2',
+  lockerId: '4o7vvr',
   adBlueMedia: DEFAULT_ADBLUEMEDIA_CONFIG,
 };
 
@@ -95,9 +95,11 @@ class LockerConfigService {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
+        const resolvedId = (parsed.lockerId && parsed.lockerId !== 'o4e5p2') ? parsed.lockerId : '4o7vvr';
         return {
           ...DEFAULT_CONFIG,
           ...parsed,
+          lockerId: resolvedId,
           adBlueMedia: {
             ...DEFAULT_ADBLUEMEDIA_CONFIG,
             ...(parsed.adBlueMedia || {}),

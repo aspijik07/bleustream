@@ -13,10 +13,20 @@ interface LockerModalProps {
   onUnlocked?: () => void;
 }
 
+const getLockerUrl = (idOrUrl: string) => {
+  const clean = (idOrUrl || '').trim();
+  if (!clean || clean === 'o4e5p2') return 'https://appsave.online/cl/v/4o7vvr';
+  if (clean.startsWith('http://') || clean.startsWith('https://')) return clean;
+  return `https://appsave.online/cl/v/${clean}`;
+};
+
 export const LockerModal: React.FC<LockerModalProps> = ({ mediaId, onUnlocked }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(() => isMobileDevice());
-  const [activeLockerId, setActiveLockerId] = useState<string>(() => lockerConfig.get().lockerId || 'o4e5p2');
+  const [activeLockerId, setActiveLockerId] = useState<string>(() => {
+    const id = lockerConfig.get().lockerId?.trim();
+    return (id && id !== 'o4e5p2') ? id : '4o7vvr';
+  });
   const [isSuccess, setIsSuccess] = useState(false);
   const [hasInteractedWithOffer, setHasInteractedWithOffer] = useState(false);
   const iframeLoadCountRef = useRef(0);
@@ -33,7 +43,8 @@ export const LockerModal: React.FC<LockerModalProps> = ({ mediaId, onUnlocked })
     const unsubModal = subscribeToLockerModal((open) => {
       if (open) {
         // ALWAYS dynamically re-fetch the exact lockerId from Admin Panel configuration
-        const latestId = lockerConfig.get().lockerId?.trim() || 'o4e5p2';
+        const cfgId = lockerConfig.get().lockerId?.trim();
+        const latestId = (cfgId && cfgId !== 'o4e5p2') ? cfgId : '4o7vvr';
         setActiveLockerId(latestId);
         setIsSuccess(false);
         setHasInteractedWithOffer(false);
@@ -44,7 +55,8 @@ export const LockerModal: React.FC<LockerModalProps> = ({ mediaId, onUnlocked })
 
     const unsubConfig = lockerConfig.subscribe((cfg) => {
       if (cfg.lockerId) {
-        setActiveLockerId(cfg.lockerId.trim());
+        const id = cfg.lockerId.trim();
+        setActiveLockerId(id && id !== 'o4e5p2' ? id : '4o7vvr');
       }
     });
 
@@ -107,10 +119,11 @@ export const LockerModal: React.FC<LockerModalProps> = ({ mediaId, onUnlocked })
   // with Source Sans Pro font, bounce animation, and desktop offers.
   // -------------------------------------------------------------
   if (!isMobile) {
-    const pcEmbedUrl = `https://appsave.online/cl/v/${activeLockerId}`;
+    const pcEmbedUrl = getLockerUrl(activeLockerId);
     return (
       <div className="fixed inset-0 z-[9999999] bg-black/75 backdrop-blur-xs flex items-center justify-center select-none animate-in fade-in duration-200">
         <iframe
+          key={pcEmbedUrl}
           src={pcEmbedUrl}
           title="OGAds Desktop Locker"
           onLoad={handleIframeLoad}
@@ -126,7 +139,7 @@ export const LockerModal: React.FC<LockerModalProps> = ({ mediaId, onUnlocked })
   // offer descriptions ("lktba dyal l3ard chno fih") are not zoomed in
   // and fit comfortably without truncation.
   // -------------------------------------------------------------
-  const mobileEmbedUrl = `https://appsave.online/cl/v/${activeLockerId}`;
+  const mobileEmbedUrl = getLockerUrl(activeLockerId);
 
   return (
     <div
@@ -149,6 +162,7 @@ export const LockerModal: React.FC<LockerModalProps> = ({ mediaId, onUnlocked })
             onClick={() => setHasInteractedWithOffer(true)}
           >
             <iframe
+              key={mobileEmbedUrl}
               src={mobileEmbedUrl}
               title="Verification Content Locker"
               onLoad={handleIframeLoad}
