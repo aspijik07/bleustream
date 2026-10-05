@@ -1433,7 +1433,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {[
                     { id: 'adbluemedia', name: 'AdBlueMedia (CPABuild)', desc: 'CloudFront script with _Ri() recall', badge: 'Active Network', color: 'from-blue-600/30 to-cyan-950/50 border-cyan-500 text-cyan-300' },
-                    { id: 'ogads', name: 'OGAds Native', desc: 'Direct locker ID (o4e5p2) with AppSave CDN', badge: 'OGAds Direct', color: 'from-sky-500/30 to-amber-950/50 border-sky-400 text-red-300' },
+                    { id: 'ogads', name: 'OGAds Native', desc: `Direct locker ID (${lockerSettings.lockerId || '4o7vvr'}) with AppSave CDN`, badge: 'OGAds Direct', color: 'from-sky-500/30 to-amber-950/50 border-sky-400 text-red-300' },
                     { id: 'both', name: 'Multi-Network (Both)', desc: 'AdBlueMedia + OGAds fallback rotation', badge: 'Dual Rotation', color: 'from-purple-600/30 to-indigo-950/50 border-purple-500 text-purple-300' },
                   ].map((p) => {
                     const isSelected = (lockerSettings.provider || 'adbluemedia') === p.id;
@@ -1530,6 +1530,72 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
                 </div>
               </div>
 
+              {/* Trigger Mode: Every Stream vs Once Per Session */}
+              <div className="p-4 bg-zinc-900/60 border border-zinc-800 rounded-xl space-y-3">
+                <div className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
+                  <RefreshCw className="w-4 h-4 text-purple-400" />
+                  <span>Trigger Frequency (How often should locker appear?)</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = { ...lockerSettings, triggerMode: 'every_stream' as const };
+                      setLockerSettings(next);
+                      lockerConfig.updateConfig(next);
+                    }}
+                    className={`p-3 rounded-lg border text-left flex items-start justify-between cursor-pointer transition ${
+                      (lockerSettings.triggerMode || 'every_stream') === 'every_stream'
+                        ? 'bg-purple-500/10 border-purple-500/50 text-white'
+                        : 'bg-zinc-900 border-zinc-800 text-zinc-400'
+                    }`}
+                  >
+                    <div>
+                      <div className="text-xs font-bold flex items-center gap-1.5">
+                        <RefreshCw className="w-3.5 h-3.5 text-purple-400" />
+                        <span>Every Stream</span>
+                      </div>
+                      <p className="text-[10px] text-zinc-400 mt-0.5">
+                        Locker appears on every video — max revenue per visitor.
+                      </p>
+                    </div>
+                    <span className={`px-2 py-0.5 text-[10px] font-bold rounded ${
+                      (lockerSettings.triggerMode || 'every_stream') === 'every_stream' ? 'bg-purple-500 text-white' : 'bg-zinc-800 text-zinc-400'
+                    }`}>
+                      {(lockerSettings.triggerMode || 'every_stream') === 'every_stream' ? 'ACTIVE' : 'OFF'}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = { ...lockerSettings, triggerMode: 'once_per_session' as const };
+                      setLockerSettings(next);
+                      lockerConfig.updateConfig(next);
+                    }}
+                    className={`p-3 rounded-lg border text-left flex items-start justify-between cursor-pointer transition ${
+                      lockerSettings.triggerMode === 'once_per_session'
+                        ? 'bg-purple-500/10 border-purple-500/50 text-white'
+                        : 'bg-zinc-900 border-zinc-800 text-zinc-400'
+                    }`}
+                  >
+                    <div>
+                      <div className="text-xs font-bold flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Once Per Session</span>
+                      </div>
+                      <p className="text-[10px] text-zinc-400 mt-0.5">
+                        Locker shows only once per browser session — smoother UX.
+                      </p>
+                    </div>
+                    <span className={`px-2 py-0.5 text-[10px] font-bold rounded ${
+                      lockerSettings.triggerMode === 'once_per_session' ? 'bg-purple-500 text-white' : 'bg-zinc-800 text-zinc-400'
+                    }`}>
+                      {lockerSettings.triggerMode === 'once_per_session' ? 'ACTIVE' : 'OFF'}
+                    </span>
+                  </button>
+                </div>
+              </div>
               {/* AdBlueMedia Detailed Settings */}
               {((lockerSettings.provider || 'adbluemedia') === 'adbluemedia' || lockerSettings.provider === 'both') && (
                 <div className="p-5 bg-gradient-to-br from-blue-950/30 via-zinc-900 to-zinc-900 border border-blue-500/40 rounded-xl space-y-4">
@@ -1758,8 +1824,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
                   onClick={() => {
                     const updated = lockerConfig.updateConfig(lockerSettings);
                     setLockerSettings(updated);
-                    setLockerSavedMsg(`Saved! Active Provider is "${updated.provider.toUpperCase()}" (Delay: ${updated.delaySeconds}s)`);
-                    setTimeout(() => setLockerSavedMsg(null), 4000);
+                    const triggerInfo = [updated.triggerOnPlay ? '▶ Play' : '', updated.triggerOnDelay ? `⏱ ${updated.delaySeconds}s` : ''].filter(Boolean).join(' + ') || 'None';
+                    const modeInfo = updated.triggerMode === 'once_per_session' ? 'Once/Session' : 'Every Stream';
+                    setLockerSavedMsg(`✓ Saved! Provider: ${updated.provider.toUpperCase()} | Trigger: ${triggerInfo} | Mode: ${modeInfo}`);
+                    setTimeout(() => setLockerSavedMsg(null), 5000);
                   }}
                   className="px-6 py-3 bg-gradient-to-r from-sky-500 via-orange-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white font-extrabold rounded-xl text-xs sm:text-sm transition-all duration-200 cursor-pointer shadow-xl shadow-sky-950/60 flex items-center gap-2 border border-cyan-400/30 active:scale-95"
                 >

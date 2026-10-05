@@ -38,7 +38,7 @@ export const DEFAULT_ADBLUEMEDIA_CONFIG: AdBlueMediaConfig = {
 
 const DEFAULT_CONFIG: LockerConfig = {
   enabled: true,
-  provider: 'ogads',
+  provider: 'adbluemedia',
   delaySeconds: 15,
   triggerOnPlay: true, // Trigger when user clicks play triangle (▶)
   triggerOnDelay: true,
@@ -99,9 +99,13 @@ class LockerConfigService {
         const resolvedId = (parsed.lockerId && parsed.lockerId.trim() && parsed.lockerId !== 'o4e5p2') 
           ? parsed.lockerId.trim() 
           : DEFAULT_CONFIG.lockerId;
+        const validProvider: LockerProvider = (parsed.provider === 'adbluemedia' || parsed.provider === 'ogads' || parsed.provider === 'both')
+          ? parsed.provider
+          : DEFAULT_CONFIG.provider;
         return {
           ...DEFAULT_CONFIG,
           ...parsed,
+          provider: validProvider,
           lockerId: resolvedId,
           adBlueMedia: {
             ...DEFAULT_ADBLUEMEDIA_CONFIG,
@@ -111,29 +115,20 @@ class LockerConfigService {
         };
       }
 
-      // Check legacy v2 - never use o4e5p2 as fallback
-      const legacyV2 = localStorage.getItem('perkvex_locker_config_v2');
-      if (legacyV2) {
-        const parsed = JSON.parse(legacyV2);
-        const legacyId = (parsed.lockerId && parsed.lockerId !== 'o4e5p2') ? parsed.lockerId : DEFAULT_CONFIG.lockerId;
-        return {
-          ...DEFAULT_CONFIG,
-          enabled: parsed.enabled ?? true,
-          delaySeconds: parsed.delaySeconds ?? DEFAULT_CONFIG.delaySeconds,
-          lockerId: legacyId,
-        };
-      }
-
-      // Check legacy flixstream_settings - never use o4e5p2 as fallback
+      // Check legacy flixstream_settings ONLY if provider was explicitly stored
       const legacy = localStorage.getItem('flixstream_settings');
       if (legacy) {
         const parsed = JSON.parse(legacy);
         const legacyId = (parsed.lockerId && parsed.lockerId !== 'o4e5p2') ? parsed.lockerId : DEFAULT_CONFIG.lockerId;
+        const legacyProvider: LockerProvider = (parsed.provider === 'adbluemedia' || parsed.provider === 'ogads' || parsed.provider === 'both')
+          ? parsed.provider
+          : DEFAULT_CONFIG.provider;
         return {
           ...DEFAULT_CONFIG,
           enabled: parsed.lockerEnabled ?? true,
           delaySeconds: parsed.lockerDelaySeconds ?? DEFAULT_CONFIG.delaySeconds,
           lockerId: legacyId,
+          provider: legacyProvider,
         };
       }
     } catch {
@@ -184,6 +179,9 @@ class LockerConfigService {
         lockerDelaySeconds: this.config.delaySeconds,
         lockerId: this.config.lockerId,
         provider: this.config.provider,
+        triggerOnPlay: this.config.triggerOnPlay,
+        triggerOnDelay: this.config.triggerOnDelay,
+        triggerMode: this.config.triggerMode,
       };
       localStorage.setItem('flixstream_settings', JSON.stringify(legacy));
     } catch {

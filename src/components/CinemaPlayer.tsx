@@ -105,6 +105,10 @@ export const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
 
   const isAlreadyUnlocked = () => {
     try {
+      const cfg = lockerConfig.get();
+      if (cfg.triggerMode === 'once_per_session') {
+        return sessionStorage.getItem('bleustream_session_unlocked') === 'true';
+      }
       return sessionStorage.getItem(`unlocked_${media.id}`) === 'true';
     } catch {
       return false;
@@ -136,7 +140,7 @@ export const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
     }
   }, [isLocked, isUnlockedThisStream]);
 
-  // Auto-resume when OGAds completion event or callback is fired
+  // Auto-resume when OGAds/AdBlueMedia completion event or callback is fired
   useEffect(() => {
     const unsubscribe = subscribeToLockerUnlock(() => {
       markMediaUnlocked(media.id);
@@ -150,27 +154,26 @@ export const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
     return unsubscribe;
   }, [media.id]);
 
-  // Start Countdown: ONLY starts if user has initiated playback AND locker is enabled AND not yet unlocked
+  // Start Countdown: ONLY starts if user has initiated playback AND locker is enabled AND triggerOnDelay is ON
   useEffect(() => {
-    // Strictly do nothing if playback has NOT started yet or locker is disabled in Admin Panel!
-    if (!hasStartedPlayback || !isLockerEnabled) {
+    const cfg = lockerConfig.get();
+
+    // Do nothing if playback has NOT started, locker disabled, or delay trigger is turned OFF in Admin Panel
+    if (!hasStartedPlayback || !isLockerEnabled || !cfg.triggerOnDelay) {
       setIsCountingDown(false);
       return;
     }
 
-    if (effectiveLocked || isUnlockedThisStream) {
+    if (effectiveLocked || isUnlockedThisStream || isAlreadyUnlocked()) {
       setIsCountingDown(false);
       return;
     }
 
-    if (!isCountingDown && countdownSeconds === lockerDelaySeconds) {
-      // Exactly 1 second after playback begins:
-      const delayTimer = setTimeout(() => {
-        setIsCountingDown(true);
-      }, 1000);
-      return () => clearTimeout(delayTimer);
+    if (!isCountingDown) {
+      setCountdownSeconds(lockerDelaySeconds);
+      setIsCountingDown(true);
     }
-  }, [hasStartedPlayback, isLockerEnabled, effectiveLocked, isCountingDown, countdownSeconds, lockerDelaySeconds, isUnlockedThisStream]);
+  }, [hasStartedPlayback, isLockerEnabled, effectiveLocked, isCountingDown, lockerDelaySeconds, isUnlockedThisStream]);
 
   // 20-Second Countdown Timer: ticks 20s silently while user is watching, then halts playback & triggers LAST();
   useEffect(() => {
@@ -197,12 +200,12 @@ export const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
     return () => clearInterval(interval);
   }, [isCountingDown, effectiveLocked, onTriggerLocker, media]);
 
-  // Center Play triangle button click handler ("daak lmotalat bach ibda l fraja")
+  // Center Play triangle button click handler
   const handleStartPlayCenter = () => {
     const cfg = lockerConfig.get();
 
-    // Check if content locker is enabled and configured to trigger on play click (▶ triangle)
-    if (isLockerEnabled && !isAlreadyUnlocked() && cfg.triggerOnPlay) {
+    // Trigger locker on play click ONLY if: locker enabled + triggerOnPlay is ON + not already unlocked
+    if (cfg.enabled && cfg.triggerOnPlay && !isAlreadyUnlocked()) {
       liveTracker.recordStreamStart(media, currentSeason, currentEpisode, selectedServer.name);
       liveTracker.recordLockerEvent(media, 'prompted');
       setIsLockedInternal(true);
@@ -213,12 +216,12 @@ export const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
       return;
     }
 
+    // No locker on play - start stream directly
     setHasStartedPlayback(true);
     setIsPlayerLoading(true);
     liveTracker.recordStreamStart(media, currentSeason, currentEpisode, selectedServer.name);
     liveTracker.setWatchingState(true, title);
 
-    // Fast loading safety timeout: dismiss loading indicator in 800ms so it NEVER freezes or hangs
     setTimeout(() => {
       setIsPlayerLoading(false);
     }, 800);

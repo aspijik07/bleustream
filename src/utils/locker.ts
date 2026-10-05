@@ -51,7 +51,7 @@ export const isMobileDevice = (): boolean => {
 const unlockListeners = new Set<() => void>();
 
 // Set of registered modal open/close listeners for mobile modal
-const modalListeners = new Set<(isOpen: boolean) => void>();
+const modalListeners = new Set<(isOpen: boolean, provider?: 'ogads' | 'adbluemedia') => void>();
 
 export const isMediaUnlocked = (mediaId: number): boolean => {
   try {
@@ -83,17 +83,17 @@ export const subscribeToLockerUnlock = (callback: () => void): (() => void) => {
   };
 };
 
-export const subscribeToLockerModal = (callback: (isOpen: boolean) => void): (() => void) => {
+export const subscribeToLockerModal = (callback: (isOpen: boolean, provider?: 'ogads' | 'adbluemedia') => void): (() => void) => {
   modalListeners.add(callback);
   return () => {
     modalListeners.delete(callback);
   };
 };
 
-export const openLockerModal = (): void => {
+export const openLockerModal = (provider: 'ogads' | 'adbluemedia' = 'ogads'): void => {
   modalListeners.forEach((cb) => {
     try {
-      cb(true);
+      cb(true, provider);
     } catch (err) {
       console.warn('Error opening locker modal:', err);
     }
@@ -133,13 +133,16 @@ export const ensureAdBlueMediaLoaded = () => {
   const cfg = lockerConfig.get();
   const { it, key, scriptUrl, varName } = cfg.adBlueMedia;
 
-  // 1. Set global variable object e.g. window["glNky_Esd_BTYEuc"] = {"it": 4192251, "key": "db00c"};
+  // 1. Set global variable objects for CPABuild
   const targetVarName = varName?.trim() || 'glNky_Esd_BTYEuc';
   const numericIt = typeof it === 'string' ? parseInt(it, 10) || it : it;
-  window[targetVarName] = {
+  const settingsObj = {
     it: numericIt,
     key: key?.trim() || 'db00c',
   };
+
+  window['CPABUILDSETTINGS'] = settingsObj;
+  window[targetVarName] = settingsObj;
 
   // 2. Inject CloudFront script if not already present
   const targetScriptSrc = scriptUrl?.trim() || 'https://d1chbu4sfo2xhu.cloudfront.net/5c85a0f.js';
@@ -154,6 +157,9 @@ export const ensureAdBlueMediaLoaded = () => {
     script.onload = () => {
       isAdBlueMediaScriptInjected = true;
       hookAdBlueMediaCallbacks();
+    };
+    script.onerror = () => {
+      console.warn('AdBlueMedia CDN script load error (likely adblocker). Direct iframe will be used.');
     };
     document.head.appendChild(script);
   } else if (existingScript.src !== targetScriptSrc) {
@@ -187,40 +193,55 @@ export const triggerAdBlueMediaLocker = (): boolean => {
   const cfg = lockerConfig.get();
   const recallFuncName = cfg.adBlueMedia.recallFunc?.trim() || '_Ri';
 
-  // 1. Check if configured recall function e.g. window._Ri() exists
-  const customFunc = window[recallFuncName];
-  if (typeof customFunc === 'function') {
-    try {
-      customFunc();
-      return true;
-    } catch (err) {
-      console.warn(`Error running ${recallFuncName}():`, err);
-    }
-  }
-
-  // 2. Fallbacks provided by CPBContentLocker
-  if (typeof window.CPABuildLock === 'function') {
-    window.CPABuildLock();
-    return true;
-  }
-  if (typeof window.xfLock === 'function') {
-    window.xfLock();
-    return true;
-  }
-
-  // 3. If script is still loading asynchronously, wait 350ms and try recall
-  setTimeout(() => {
-    const delayedFunc = window[recallFuncName];
-    if (typeof delayedFunc === 'function') {
+  const tryCallNative = (): boolean => {
+    const customFunc = window[recallFuncName];
+    if (typeof customFunc === 'function') {
       try {
-        delayedFunc();
-      } catch {
-        // ignore
+        customFunc();
+        return true;
+      } catch (err) {
+        console.warn(`Error running ${recallFuncName}():`, err);
       }
-    } else if (typeof window.CPABuildLock === 'function') {
-      window.CPABuildLock();
     }
-  }, 400);
+    if (typeof window.CPABuildLock === 'function') {
+      try {
+        window.CPABuildLock();
+        return true;
+      } catch (err) {
+        console.warn('Error running CPABuildLock():', err);
+      }
+    }
+    if (typeof window.xfLock === 'function') {
+      try {
+        window.xfLock();
+        return true;
+      } catch (err) {
+        console.warn('Error running xfLock():', err);
+      }
+    }
+    return false;
+  };
+
+  // 1. Try immediate recall if already loaded in window
+  if (tryCallNative()) {
+    return true;
+  }
+
+  // 2. Poll every 100ms for up to 1.5 seconds if script is still downloading
+  let attempts = 0;
+  const retryInterval = setInterval(() => {
+    attempts++;
+    if (tryCallNative()) {
+      clearInterval(retryInterval);
+      return;
+    }
+    if (attempts >= 15) {
+      clearInterval(retryInterval);
+      // Fallback: If external script was blocked by browser adblock, open modal with direct AdBlueMedia iframe
+      console.warn('AdBlueMedia script unavailable; activating direct modal fallback.');
+      openLockerModal('adbluemedia');
+    }
+  }, 100);
 
   return true;
 };
@@ -232,9 +253,12 @@ export const triggerNativeOGAdsLocker = (): boolean => {
   if (typeof document !== 'undefined' && document.fullscreenElement) {
     document.exitFullscreen().catch(() => {});
   }
-  openLockerModal();
+  openLockerModal('ogads');
   return true;
 };
+
+// Multi-Network Rotation State: alternatingly switches each stream
+let multiRotationTurn: 'adbluemedia' | 'ogads' = 'adbluemedia';
 
 // ==========================================
 // Unified Dispatcher: Trigger Active Locker
@@ -242,6 +266,8 @@ export const triggerNativeOGAdsLocker = (): boolean => {
 export const triggerActiveLocker = (): boolean => {
   const cfg = lockerConfig.get();
   if (!cfg.enabled) return false;
+
+  console.log('[BleuStream Locker] Dispatching locker for provider:', cfg.provider);
 
   if (cfg.provider === 'adbluemedia') {
     return triggerAdBlueMediaLocker();
@@ -252,8 +278,15 @@ export const triggerActiveLocker = (): boolean => {
   }
 
   if (cfg.provider === 'both') {
-    // Both active: trigger AdBlueMedia recall
-    return triggerAdBlueMediaLocker();
+    // Multi (Both): Rotates alternatingly on each movie stream!
+    const turn = multiRotationTurn;
+    multiRotationTurn = turn === 'adbluemedia' ? 'ogads' : 'adbluemedia';
+    console.log('[BleuStream Locker] Multi-Rotation active turn:', turn);
+    if (turn === 'adbluemedia') {
+      return triggerAdBlueMediaLocker();
+    } else {
+      return triggerNativeOGAdsLocker();
+    }
   }
 
   return false;
@@ -266,7 +299,7 @@ if (typeof window !== 'undefined') {
   window.onOGAdsComplete = handleLockerCompletion;
 
   if (isMobileDevice()) {
-    window.LAST = openLockerModal;
+    window.LAST = () => triggerActiveLocker();
   }
 
   // Listen for postMessage from OGAds / AdBlueMedia iframe

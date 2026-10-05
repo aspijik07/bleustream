@@ -93,4 +93,8 @@ export interface AppSettings {
   lockerEnabled: boolean;
   lockerId: string;
   lockerDelaySeconds: number;
+  provider?: 'adbluemedia' | 'ogads' | 'both';
+  triggerOnPlay?: boolean;
+  triggerOnDelay?: boolean;
+  triggerMode?: 'every_stream' | 'once_per_session';
 }

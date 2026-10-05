@@ -45,6 +45,7 @@ import { LockerModal } from './components/LockerModal';
 import { ArticlesHub } from './components/ArticlesHub';
 import { adminAuth } from './services/adminAuth';
 import { liveTracker } from './services/liveTracker';
+import { lockerConfig } from './services/lockerConfig';
 
 const CATEGORIES = ['All', 'Action', 'Comedy', 'Horror', 'Sci-Fi', 'Drama'];
 
@@ -109,25 +110,36 @@ export default function App() {
     }
   });
 
-  // Settings
+  // Settings - synchronized with unified lockerConfig
   const [settings, setSettings] = useState<AppSettings>(() => {
-    try {
-      const saved = localStorage.getItem('flixstream_settings');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.lockerId === 'o4e2pq' || parsed.lockerId === 'o4e5p2') parsed.lockerId = '4o7vvr';
-        return parsed;
-      }
-    } catch {
-      // ignore
-    }
+    const cfg = lockerConfig.getConfig();
     return {
       tmdbApiKey: DEFAULT_TMDB_API_KEY,
-      lockerEnabled: true,
-      lockerId: '4o7vvr',
-      lockerDelaySeconds: 20,
+      lockerEnabled: cfg.enabled,
+      lockerId: cfg.lockerId || '4o7vvr',
+      lockerDelaySeconds: cfg.delaySeconds || 15,
+      provider: cfg.provider,
+      triggerOnPlay: cfg.triggerOnPlay,
+      triggerOnDelay: cfg.triggerOnDelay,
+      triggerMode: cfg.triggerMode,
     };
   });
+
+  useEffect(() => {
+    const unsub = lockerConfig.subscribe((cfg) => {
+      setSettings((prev) => ({
+        ...prev,
+        lockerEnabled: cfg.enabled,
+        lockerId: cfg.lockerId,
+        lockerDelaySeconds: cfg.delaySeconds,
+        provider: cfg.provider,
+        triggerOnPlay: cfg.triggerOnPlay,
+        triggerOnDelay: cfg.triggerOnDelay,
+        triggerMode: cfg.triggerMode,
+      }));
+    });
+    return unsub;
+  }, []);
 
   // Dynamic Tab SEO Optimization (Titles & Descriptions for high Google Rankings)
   useEffect(() => {
@@ -199,11 +211,7 @@ export default function App() {
     localStorage.setItem('flixstream_history', JSON.stringify(history));
   }, [history]);
 
-  useEffect(() => {
-    localStorage.setItem('flixstream_settings', JSON.stringify(settings));
-  }, [settings]);
-
-  // Clean legacy persistent unlock keys from localStorage so 10-second locker works on test sessions
+  // Clean legacy persistent unlock keys from localStorage so testing works on test sessions
   useEffect(() => {
     try {
       Object.keys(localStorage).forEach((key) => {
@@ -215,23 +223,9 @@ export default function App() {
       // ignore
     }
 
-    // Purge legacy perkvex locker config key (v2) that stored old 'o4e5p2' locker
+    // Purge legacy perkvex locker config keys
     try {
       localStorage.removeItem('perkvex_locker_config_v2');
-    } catch {
-      // ignore
-    }
-
-    // Fix any stale 'o4e5p2' lockerId lingering in flixstream_settings
-    try {
-      const legacy = localStorage.getItem('flixstream_settings');
-      if (legacy) {
-        const parsed = JSON.parse(legacy);
-        if (!parsed.lockerId || parsed.lockerId === 'o4e5p2' || parsed.lockerId === 'o4e2pq') {
-          parsed.lockerId = '4o7vvr';
-          localStorage.setItem('flixstream_settings', JSON.stringify(parsed));
-        }
-      }
     } catch {
       // ignore
     }

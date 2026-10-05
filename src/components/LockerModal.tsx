@@ -6,30 +6,36 @@ import {
   subscribeToLockerModal,
   closeLockerModal,
 } from '../utils/locker';
-import { lockerConfig } from '../services/lockerConfig';
+import { lockerConfig, LockerConfig } from '../services/lockerConfig';
 
 interface LockerModalProps {
   mediaId?: number;
   onUnlocked?: () => void;
 }
 
-const getLockerUrl = (idOrUrl: string) => {
-  const clean = (idOrUrl || '').trim();
+const getLockerEmbedUrl = (cfg: LockerConfig, provider: 'ogads' | 'adbluemedia' = 'ogads'): string => {
+  if (provider === 'adbluemedia') {
+    const { it, key, scriptUrl } = cfg.adBlueMedia;
+    if (typeof scriptUrl === 'string' && (scriptUrl.includes('/cl/') || scriptUrl.includes('/lock/'))) {
+      return scriptUrl;
+    }
+    const numIt = it || 4192251;
+    const cleanKey = (key || 'db00c').trim();
+    return `https://d1chbu4sfo2xhu.cloudfront.net/public/i_fr?it=${numIt}&key=${cleanKey}`;
+  }
+
+  // OGAds default
+  const clean = (cfg.lockerId || '').trim();
   if (!clean || clean === 'o4e5p2') return 'https://appsave.online/cl/v/4o7vvr';
   if (clean.startsWith('http://') || clean.startsWith('https://')) return clean;
   return `https://appsave.online/cl/v/${clean}`;
 };
 
-// Always read fresh lockerId from config, never cache stale value
-const getFreshLockerId = (): string => {
-  const id = lockerConfig.get().lockerId?.trim();
-  return (id && id !== 'o4e5p2') ? id : '4o7vvr';
-};
-
 export const LockerModal: React.FC<LockerModalProps> = ({ mediaId, onUnlocked }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(() => isMobileDevice());
-  const [activeLockerId, setActiveLockerId] = useState<string>(getFreshLockerId);
+  const [activeConfig, setActiveConfig] = useState<LockerConfig>(() => lockerConfig.get());
+  const [activeProvider, setActiveProvider] = useState<'ogads' | 'adbluemedia'>('adbluemedia');
   const [isSuccess, setIsSuccess] = useState(false);
   const [hasInteractedWithOffer, setHasInteractedWithOffer] = useState(false);
   const iframeLoadCountRef = useRef(0);
@@ -41,13 +47,14 @@ export const LockerModal: React.FC<LockerModalProps> = ({ mediaId, onUnlocked })
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Subscribe to locker modal triggers and dynamic Admin Dashboard locker ID updates
+  // Subscribe to locker modal triggers and dynamic Admin Dashboard locker updates
   useEffect(() => {
-    const unsubModal = subscribeToLockerModal((open) => {
+    const unsubModal = subscribeToLockerModal((open, provider) => {
       if (open) {
-        // ALWAYS dynamically re-fetch the exact lockerId from Admin Panel configuration
-        const latestId = getFreshLockerId();
-        setActiveLockerId(latestId);
+        const latestCfg = lockerConfig.get();
+        setActiveConfig(latestCfg);
+        const resolvedProvider = provider || (latestCfg.provider === 'both' ? 'adbluemedia' : latestCfg.provider) || 'adbluemedia';
+        setActiveProvider(resolvedProvider);
         setIsSuccess(false);
         setHasInteractedWithOffer(false);
         iframeLoadCountRef.current = 0;
@@ -56,10 +63,7 @@ export const LockerModal: React.FC<LockerModalProps> = ({ mediaId, onUnlocked })
     });
 
     const unsubConfig = lockerConfig.subscribe((cfg) => {
-      // Update whenever admin changes locker ID - always respect their choice
-      const id = cfg.lockerId?.trim();
-      const resolvedId = (id && id !== 'o4e5p2') ? id : '4o7vvr';
-      setActiveLockerId(resolvedId);
+      setActiveConfig(cfg);
     });
 
     return () => {
@@ -88,7 +92,7 @@ export const LockerModal: React.FC<LockerModalProps> = ({ mediaId, onUnlocked })
   const handleIframeLoad = () => {
     iframeLoadCountRef.current += 1;
     // Load count 1 is initial locker embed.
-    // If the iframe navigates again (count > 1), it means OGAds completed/redirected!
+    // If the iframe navigates again (count > 1), it means locker completed/redirected!
     if (iframeLoadCountRef.current > 1) {
       handleAutoUnlock();
     }
@@ -114,20 +118,19 @@ export const LockerModal: React.FC<LockerModalProps> = ({ mediaId, onUnlocked })
     return null;
   }
 
+  const embedUrl = getLockerEmbedUrl(activeConfig, activeProvider);
+
   // -------------------------------------------------------------
   // 1. PC (DESKTOP) VERSION:
-  // Render the authentic OGAds Desktop Locker natively!
-  // No custom React header/frame. Displays the 580px centered card
-  // with Source Sans Pro font, bounce animation, and desktop offers.
+  // Render the authentic Content Locker natively
   // -------------------------------------------------------------
   if (!isMobile) {
-    const pcEmbedUrl = getLockerUrl(activeLockerId);
     return (
       <div className="fixed inset-0 z-[9999999] bg-black/75 backdrop-blur-xs flex items-center justify-center select-none animate-in fade-in duration-200">
         <iframe
-          key={pcEmbedUrl}
-          src={pcEmbedUrl}
-          title="OGAds Desktop Locker"
+          key={embedUrl}
+          src={embedUrl}
+          title={activeProvider === 'adbluemedia' ? 'AdBlueMedia Content Locker' : 'OGAds Desktop Locker'}
           onLoad={handleIframeLoad}
           className="w-full h-full border-0 relative z-10"
         />
@@ -137,11 +140,9 @@ export const LockerModal: React.FC<LockerModalProps> = ({ mediaId, onUnlocked })
 
   // -------------------------------------------------------------
   // 2. MOBILE (PHONE) VERSION:
-  // Scaled down by ~14% (scale: 0.86, width: 116%) so fonts and
-  // offer descriptions ("lktba dyal l3ard chno fih") are not zoomed in
-  // and fit comfortably without truncation.
+  // Scaled down so fonts and offers fit comfortably
   // -------------------------------------------------------------
-  const mobileEmbedUrl = getLockerUrl(activeLockerId);
+  const mobileEmbedUrl = embedUrl;
 
   return (
     <div
