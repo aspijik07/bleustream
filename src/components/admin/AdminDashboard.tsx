@@ -2363,7 +2363,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
               {pseoArticles.length > 0 && (
                 <div className="p-4 bg-zinc-950/80 border border-zinc-800/70 rounded-xl space-y-2 max-w-3xl font-sans">
                   <div className="text-xs text-emerald-400 flex items-center gap-1.5">
-                    <span>https://bleustream.online › articles › {pseoArticles[0].slug}</span>
+                    <span>https://bleustream.pages.dev › articles › {pseoArticles[0].slug}</span>
                   </div>
                   <h4 className="text-base sm:text-lg font-medium text-[#8ab4f8] hover:underline cursor-pointer">
                     {pseoArticles[0].metaTitle}

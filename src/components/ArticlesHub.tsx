@@ -97,7 +97,7 @@ export const ArticlesHub: React.FC<ArticlesHubProps> = ({
           publisher: {
             '@type': 'Organization',
             name: 'BleuStream HD Cinema',
-            url: 'https://bleustream.online',
+            url: 'https://bleustream.pages.dev',
           },
           description: selectedArticle.excerpt,
         },
@@ -130,19 +130,19 @@ export const ArticlesHub: React.FC<ArticlesHubProps> = ({
               '@type': 'ListItem',
               position: 1,
               name: 'Home',
-              item: 'https://bleustream.online/',
+              item: 'https://bleustream.pages.dev/',
             },
             {
               '@type': 'ListItem',
               position: 2,
               name: 'Articles Hub',
-              item: 'https://bleustream.online/?tab=articles',
+              item: 'https://bleustream.pages.dev/?tab=articles',
             },
             {
               '@type': 'ListItem',
               position: 3,
               name: selectedArticle.title,
-              item: `https://bleustream.online/?tab=articles&article=${selectedArticle.slug}`,
+              item: `https://bleustream.pages.dev/?tab=articles&article=${selectedArticle.slug}`,
             },
           ],
         },
@@ -176,7 +176,7 @@ export const ArticlesHub: React.FC<ArticlesHubProps> = ({
   });
 
   const handleShare = (art: SEOArticle) => {
-    const url = `https://bleustream.online/?tab=articles&article=${encodeURIComponent(art.slug)}`;
+    const url = `https://bleustream.pages.dev/?tab=articles&article=${encodeURIComponent(art.slug)}`;
     if (navigator.clipboard) {
       navigator.clipboard.writeText(url);
       setCopied(true);
