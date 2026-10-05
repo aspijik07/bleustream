@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+
+# Priority Crawl instructions for Googlebot, Bingbot, DuckDuckGo & Yandex
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: DuckDuckBot
+Allow: /
+
+# Full PSEO XML Sitemap Index
+Sitemap: https://perkvex.online/sitemap.xml
