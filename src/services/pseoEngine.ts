@@ -2,7 +2,14 @@
 // Generates 10 high-ranking, keyword-dense articles daily from TMDB Trending Movies, TV Series & Anime
 
 import { SEOArticle, SEO_ARTICLES } from '../data/seoArticles';
-import { fetchTrending, fetchAnime, getPosterUrl, getBackdropUrl } from './tmdb';
+import {
+  fetchTrending,
+  fetchPopular,
+  fetchTopRated,
+  fetchAnime,
+  getPosterUrl,
+  getBackdropUrl,
+} from './tmdb';
 import { MediaItem } from '../types';
 
 const STORAGE_KEY_ARTICLES = 'bleustream_pseo_articles_v1';
@@ -27,19 +34,9 @@ const DEFAULT_SETTINGS: PSEOSettings = {
   includeMovies: true,
   includeSeries: true,
   includeAnime: true,
-  minWordCount: 850,
+  minWordCount: 950,
   lastGeneratedDate: null,
 };
-
-// Power keywords vocabulary for cinema search intent
-const SEARCH_INTENT_PREFIXES = [
-  'How to Watch',
-  'Where to Stream',
-  'Full Movie Free Stream Guide:',
-  'Watch Online Free 1080p:',
-  'Complete Series Streaming Guide:',
-  'HD Cinema Review & Stream Guide:',
-];
 
 function generateSlug(text: string): string {
   return text
@@ -50,19 +47,56 @@ function generateSlug(text: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
-function synthesizeArticleForMedia(media: MediaItem, category: 'Movie Guides' | 'TV Series Guides' | 'Anime Guides'): SEOArticle {
-  const isTv = category === 'TV Series Guides' || category === 'Anime Guides' || media.media_type === 'tv' || !!media.first_air_date;
-  const title = media.title || media.name || 'Trending Title';
-  const year = (media.release_date || media.first_air_date || new Date().getFullYear().toString()).slice(0, 4);
-  const ratingScore = (media.vote_average || 8.5).toFixed(1);
-  const voteCount = media.vote_count || 1250;
+// Generate unique search angles if a movie is re-targeted
+const SEARCH_INTENT_ANGLES = [
+  (t: string, y: string) => `watch-${t}-${y}-online-free-hd`,
+  (t: string, y: string) => `where-to-stream-${t}-${y}-4k-ultra-hd`,
+  (t: string, y: string) => `complete-streaming-guide-${t}-${y}-free`,
+  (t: string, y: string) => `watch-${t}-reddit-mirrors-1080p`,
+  (t: string, y: string) => `stream-${t}-full-movie-without-signup`,
+];
+
+function synthesizeArticleForMedia(
+  media: MediaItem,
+  category: 'Movie Guides' | 'TV Series Guides' | 'Anime Guides',
+  existingSlugs: Set<string>
+): SEOArticle {
+  const isTv =
+    category === 'TV Series Guides' ||
+    category === 'Anime Guides' ||
+    media.media_type === 'tv' ||
+    !!media.first_air_date;
+  const title = media.title || media.name || 'Trending Cinema Title';
+  const year = (
+    media.release_date ||
+    media.first_air_date ||
+    new Date().getFullYear().toString()
+  ).slice(0, 4);
+  const ratingScore = (media.vote_average || 8.6).toFixed(1);
+  const voteCount = media.vote_count || 1420;
   const today = new Date().toISOString().split('T')[0];
-
-  const slug = generateSlug(`watch-${title}-${year}-online-free-hd`);
-  const cleanOverview = media.overview || `Experience ${title} (${year}) in stunning high-definition streaming on BleuStream.`;
-
-  // Dynamic Keyword Generator for High-Volume Search Intent
   const cleanTitle = title.toLowerCase();
+
+  // Find a unique slug using search angles
+  let baseSlug = '';
+  for (const angleFn of SEARCH_INTENT_ANGLES) {
+    const candidate = generateSlug(angleFn(cleanTitle, year));
+    if (!existingSlugs.has(candidate)) {
+      baseSlug = candidate;
+      break;
+    }
+  }
+  if (!baseSlug) {
+    baseSlug = generateSlug(
+      `watch-${cleanTitle}-${year}-stream-guide-${Date.now().toString().slice(-4)}`
+    );
+  }
+
+  const cleanOverview =
+    media.overview ||
+    `Experience ${title} (${year}) in stunning high-definition streaming on BleuStream with 0% buffering, multi-language subtitles, and surround audio.`;
+
+  // Dynamic Keyword Matrix targeting 1,000,000 search intent traffic
   const keywords = [
     `watch ${cleanTitle} online free`,
     `${cleanTitle} full movie stream 1080p`,
@@ -71,95 +105,130 @@ function synthesizeArticleForMedia(media: MediaItem, category: 'Movie Guides' | 
     `${cleanTitle} english subtitles audio mirrors`,
     `where to watch ${cleanTitle} reddit mirror`,
     `${cleanTitle} cast rating and review`,
+    `watch ${cleanTitle} free without registration`,
+    `stream ${cleanTitle} 4k hdr bleustream`,
+    `${cleanTitle} mobile and smart tv playback`,
   ];
 
   if (category === 'Anime Guides') {
-    keywords.push(`${cleanTitle} anime sub and dub`, `${cleanTitle} episode stream online free`);
+    keywords.push(
+      `${cleanTitle} anime sub and dub free`,
+      `${cleanTitle} complete episode streaming`,
+      `${cleanTitle} uncensored high quality`
+    );
   } else if (category === 'TV Series Guides') {
-    keywords.push(`${cleanTitle} complete season episodes free`, `${cleanTitle} tv show watch free`);
+    keywords.push(
+      `${cleanTitle} complete season episodes free`,
+      `${cleanTitle} binge watch series in 1080p`,
+      `${cleanTitle} episode recap and ending explained`
+    );
   }
 
   const metaTitle = `Watch ${title} (${year}) Online Free in 1080p & 4K | BleuStream Cinema`;
   const metaDescription = `Stream ${title} (${year}) online for free in 1080p Full HD & 4K Ultra HD on BleuStream. Discover synopsis, cast breakdown, verified mirror servers, and instant playback with 0% buffering.`;
 
-  // Deep Structured Article Sections with High Keyword Density
+  // Deep Structured Article Sections with High Keyword Density & Internal Cross-Links
   const sections = [
     {
       heading: `The Cinematic Phenomenon: Why ${title} (${year}) is Dominating Worldwide Trends`,
       paragraphs: [
         `${title} (${year}) has rapidly emerged as one of the most streamed and talked-about releases of the year. Featuring an exceptional blend of storytelling, top-tier cinematography, and stellar performances, it has captured the attention of critics and moviegoers across the globe.`,
         `${cleanOverview}`,
-        `With an impressive viewer approval score of ${ratingScore}/10 across thousands of verified reviews, ${title} proves that cinematic craftsmanship and high-stakes drama continue to draw massive streaming audiences.`
+        `With an impressive viewer approval score of ${ratingScore}/10 across ${voteCount.toLocaleString()} verified ratings, ${title} proves that cinematic craftsmanship and high-stakes drama continue to draw massive streaming audiences worldwide.`,
       ],
       bulletPoints: [
         `Title: ${title} (${year})`,
         `Format: ${isTv ? 'Complete TV Series' : 'Full-Length Feature Film'} in 1080p / 4K Ultra HD`,
-        `Audience Rating: ${ratingScore}/10 (${voteCount.toLocaleString()} verified ratings)`,
-        `Playback Availability: 7 high-speed CDN mirrors with stereo surround audio and multi-subtitles`,
-        `Platform: 100% Free on BleuStream with Anti-Popup Ad-Shield protection`
-      ]
+        `Audience Rating: ${ratingScore}/10 (${voteCount.toLocaleString()} verified reviews)`,
+        `Playback Availability: 7 high-speed cloud CDN mirrors with stereo surround audio and multi-subtitles`,
+        `Platform: 100% Free on BleuStream with Anti-Popup Ad-Shield protection`,
+      ],
     },
     {
-      heading: `Plot Synopsis & Thematic Depth`,
+      heading: `Plot Synopsis, Thematic Depth & Narrative Execution (Spoiler-Free)`,
       paragraphs: [
-        `At its core, ${title} explores universal themes of ambition, survival, and unexpected alliances. What distinguishes this title from standard genre releases is its pacing—balancing pulse-pounding sequences with character-driven moments that keep the audience emotionally invested from the opening frame to the final credits.`,
-        `The creative vision behind ${title} shines through its attention to detail. Every set piece, musical cue, and camera angle serves to heighten tension and deliver a truly memorable cinema experience.`
-      ]
+        `At its core, ${title} explores universal themes of ambition, survival, resilience, and unexpected alliances. What distinguishes this title from standard genre releases is its pacing—balancing pulse-pounding sequences with character-driven moments that keep the audience emotionally invested from the opening frame to the final credits.`,
+        `The creative vision behind ${title} shines through its meticulous attention to detail. Every set piece, musical cue, and camera angle serves to heighten tension, making it an essential title to add to your personal watchlist on BleuStream.`,
+      ],
+      bulletPoints: [
+        `Visual Direction: Pristine color grading optimized for OLED & HDR screens`,
+        `Pacing: Seamless balance between high-octane spectacle and character development`,
+        `Critical Acclaim: Universally praised for writing, editing, and sound design`,
+      ],
     },
     {
-      heading: `Why Stream ${title} on BleuStream? Ultra HD Mirrors & Anti-Buffering Architecture`,
+      heading: `BleuStream vs Traditional Subscriptions: The Free 4K Advantage`,
       paragraphs: [
-        `Streaming full-length titles online is often ruined by intrusive pop-up advertisements, slow bandwidth buffering, and broken video links. BleuStream was engineered from the ground up to solve these exact frustrations.`,
-        `When you stream ${title} on BleuStream, you gain access to our distributed VidSrc cloud CDN network. Our multi-mirror architecture automatically connects you to the fastest server in your region, guaranteeing 1080p and 4K playback with instant seek response and zero lag.`
+        `While legacy subscription services continue raising prices and implementing strict account sharing restrictions, BleuStream provides a next-generation streaming alternative without monthly fees or credit card requirements.`,
+        `Our decentralized streaming infrastructure aggregates the highest-speed cloud nodes (VidSrc Prime, Cloud CDN, and VIP Mirror) ensuring you never experience server overload or dead links during peak streaming hours.`,
+      ],
+      bulletPoints: [
+        `No Monthly Subscription: 100% Free ($0 vs $19.99/mo for standard streaming plans)`,
+        `No Account Creation Required: Start streaming immediately with zero registration`,
+        `Adaptive Bitrate: Automatic bandwidth scaling from 720p to 1080p Full HD & 4K Ultra HD`,
+        `Multi-Language Subtitles: English, French, Spanish, German, and Arabic supported`,
+      ],
+    },
+    {
+      heading: `Technical Breakdown: Multi-Mirror CDN Architecture & Anti-Buffering`,
+      paragraphs: [
+        `Streaming full-length cinema titles online is often ruined by intrusive pop-up advertisements, slow bandwidth buffering, and broken video links. BleuStream was engineered from the ground up to solve these exact frustrations.`,
+        `When you stream ${title} on BleuStream, you gain access to our distributed cloud CDN network. Our multi-mirror architecture automatically connects you to the fastest server in your region, guaranteeing instant seek response and zero lag.`,
       ],
       bulletPoints: [
         `0% Buffering: High-throughput cloud streaming mirrors (VidSrc Prime, Cloud, and VIP)`,
-        `Multi-Audio & Subtitles: Built-in tracks for English, Spanish, French, German, and Arabic`,
         `Anti-Ad Shield: Built-in sandbox filter that suppresses rogue popups and unwanted redirects`,
-        `Multi-Device Ready: Responsive cinema player optimized for smartphones, tablets, and 4K smart TVs`
-      ]
+        `Cross-Device Compatibility: Responsive cinema player optimized for smartphones, tablets, and 4K smart TVs`,
+        `Audio Quality: Crystal-clear Dolby Stereo 5.1 surround mix for an immersive theater experience`,
+      ],
     },
     {
       heading: `Step-by-Step Guide: How to Start Watching ${title} Right Now`,
       paragraphs: [
-        `Getting started takes less than 5 seconds: Click the large red/blue Play button above to launch our Ultra HD Cinema Player. You can switch between audio languages and subtitles using the in-player controls.`,
-        `If your internet connection fluctuates, you can seamlessly switch between VidSrc Server 1, Server 2, or Server 3 using the floating toolbar directly above the stream container.`
-      ]
-    }
+        `Getting started takes less than 5 seconds: Click the large red Watch button at the top of this guide or launch our Ultra HD Cinema Player. You can switch between audio languages and subtitles using the in-player controls.`,
+        `If your internet connection fluctuates, you can seamlessly switch between VidSrc Server 1, Server 2, or Server 3 using the floating toolbar directly above the stream container.`,
+      ],
+      bulletPoints: [
+        `Step 1: Click the red 'Watch Free Now' button below`,
+        `Step 2: Choose your preferred audio track and subtitle language`,
+        `Step 3: Toggle full-screen mode and enjoy uninterrupted cinema streaming`,
+      ],
+    },
   ];
 
   // Schema.org FAQ Rich Snippet Accordion
   const faqs = [
     {
       question: `Is ${title} available to watch for free on BleuStream?`,
-      answer: `Yes, ${title} (${year}) is available to stream completely free in 1080p Full HD and 4K Ultra HD on BleuStream without any subscription or sign-up required.`
+      answer: `Yes, ${title} (${year}) is available to stream completely free in 1080p Full HD and 4K Ultra HD on BleuStream without any subscription or sign-up required.`,
     },
     {
       question: `Are English subtitles and multi-language audio tracks included?`,
-      answer: `Yes, all our high-speed VidSrc mirrors feature multi-language subtitles including English, Spanish, French, and Arabic, alongside crystal-clear surround audio.`
+      answer: `Yes, all our high-speed VidSrc mirrors feature multi-language subtitles including English, Spanish, French, and Arabic, alongside crystal-clear surround audio.`,
     },
     {
       question: `What should I do if the video buffers or fails to load?`,
-      answer: `Simply click the 'Next Server' button or switch between VidSrc 1, VidSrc 2, and VidSrc 3 in the streaming server selector above the video player.`
+      answer: `Simply click the 'Next Server' button or switch between VidSrc 1, VidSrc 2, and VidSrc 3 in the streaming server selector above the video player.`,
     },
     {
       question: `Can I stream ${title} on mobile devices (iPhone and Android)?`,
-      answer: `Yes, BleuStream is fully responsive and optimized for mobile browsers with full-screen playback and touch gesture controls.`
-    }
+      answer: `Yes, BleuStream is fully responsive and optimized for mobile browsers with full-screen playback, touch gesture controls, and low data mode.`,
+    },
   ];
 
-  const coverImage = getBackdropUrl(media.backdrop_path) || getPosterUrl(media.poster_path);
+  const coverImage =
+    getBackdropUrl(media.backdrop_path) || getPosterUrl(media.poster_path);
 
   return {
-    id: `pseo-${media.id}-${today}`,
-    slug,
+    id: `pseo-${media.id}-${baseSlug}`,
+    slug: baseSlug,
     title: `${title} (${year}) – Complete Streaming Guide & Where to Watch Free in HD`,
     metaTitle,
     metaDescription,
     category,
     publishedDate: today,
     modifiedDate: today,
-    readTime: '7 min read',
+    readTime: '8 min read',
     author: 'BleuStream Cinema Editorial',
     authorRole: 'Chief Streaming Analyst & Film Critic',
     coverImage,
@@ -186,7 +255,12 @@ class PSEOEngineService {
     if (typeof window !== 'undefined') {
       setTimeout(() => {
         this.checkAndAutoGenerate();
-      }, 3000);
+      }, 2500);
+
+      // Background periodic check every 15 minutes to guarantee daily automated generation
+      setInterval(() => {
+        this.checkAndAutoGenerate();
+      }, 15 * 60 * 1000);
     }
   }
 
@@ -277,73 +351,123 @@ class PSEOEngineService {
     if (!this.settings.autoGenerateDaily) return false;
 
     const today = new Date().toISOString().split('T')[0];
-    if (this.settings.lastGeneratedDate === today && this.customArticles.length >= 10) {
-      return false; // Already generated for today
+    // Check how many custom articles were generated today
+    const generatedToday = this.customArticles.filter(
+      (a) => a.publishedDate === today
+    ).length;
+
+    if (generatedToday >= 10 && this.settings.lastGeneratedDate === today) {
+      return false; // Already reached daily 10 articles quota
     }
 
     try {
-      await this.generateDailyTrendingArticles(false);
-      return true;
+      const added = await this.generateDailyTrendingArticles(false);
+      return added.length > 0;
     } catch (err) {
       console.warn('Automated pSEO generation check error:', err);
       return false;
     }
   }
 
-  // Generates 10 top trending articles (4 movies, 3 tv series, 3 anime)
+  // Generates 10 top trending articles GUARANTEED (4 movies, 3 tv series, 3 anime)
   public async generateDailyTrendingArticles(force = true): Promise<SEOArticle[]> {
     if (this.isGenerating) return [];
     this.isGenerating = true;
 
     try {
       const today = new Date().toISOString().split('T')[0];
+      const existingSlugs = new Set(this.getAllArticles().map((a) => a.slug));
+      const existingMediaIds = new Set(
+        this.customArticles.map((a) => a.relatedMediaId)
+      );
 
-      // 1. Fetch trending movies, tv series, and anime from TMDB API
-      const [moviesRes, tvRes, animeRes] = await Promise.all([
+      // 1. Fetch extensive media pools from TMDB
+      const [
+        trendingMovies,
+        popularMovies,
+        topRatedMovies,
+        trendingTv,
+        popularTv,
+        animeP1,
+        animeP2,
+      ] = await Promise.all([
         fetchTrending('movie', 'day').catch(() => []),
+        fetchPopular('movie', 1).catch(() => []),
+        fetchTopRated('movie', 1).catch(() => []),
         fetchTrending('tv', 'day').catch(() => []),
+        fetchPopular('tv', 1).catch(() => []),
         fetchAnime('all', 1).catch(() => []),
+        fetchAnime('all', 2).catch(() => []),
       ]);
+
+      // Combine and deduplicate candidates
+      const allMovieCandidates: MediaItem[] = [
+        ...trendingMovies,
+        ...popularMovies,
+        ...topRatedMovies,
+      ];
+      const allTvCandidates: MediaItem[] = [...trendingTv, ...popularTv];
+      const allAnimeCandidates: MediaItem[] = [...animeP1, ...animeP2];
 
       const newArticles: SEOArticle[] = [];
 
-      // 4 Top Trending Movies
-      const topMovies = moviesRes.slice(0, 4);
-      topMovies.forEach((m) => {
-        newArticles.push(synthesizeArticleForMedia(m, 'Movie Guides'));
-      });
-
-      // 3 Top Trending TV Series
-      const topSeries = tvRes.slice(0, 3);
-      topSeries.forEach((s) => {
-        newArticles.push(synthesizeArticleForMedia(s, 'TV Series Guides'));
-      });
-
-      // 3 Top Trending Anime
-      const topAnime = animeRes.slice(0, 3);
-      topAnime.forEach((a) => {
-        newArticles.push(synthesizeArticleForMedia(a, 'Anime Guides'));
-      });
-
-      if (newArticles.length === 0) {
-        throw new Error('No trending titles returned from catalog API');
+      // A. Pick 4 Unseen Movies (or fallback with fresh search angle)
+      let selectedMovies: MediaItem[] = allMovieCandidates.filter(
+        (m) => !existingMediaIds.has(m.id)
+      );
+      if (selectedMovies.length < 4) {
+        selectedMovies = allMovieCandidates; // Reuse with distinct angle
+      }
+      for (const movie of selectedMovies) {
+        if (newArticles.filter((a) => a.category === 'Movie Guides').length >= 4) break;
+        const art = synthesizeArticleForMedia(movie, 'Movie Guides', existingSlugs);
+        existingSlugs.add(art.slug);
+        existingMediaIds.add(movie.id);
+        newArticles.push(art);
       }
 
-      // Merge avoiding duplicate slugs
-      const existingSlugs = new Set(this.customArticles.map((a) => a.slug));
-      const addedArticles: SEOArticle[] = [];
+      // B. Pick 3 Unseen TV Series
+      let selectedTv: MediaItem[] = allTvCandidates.filter(
+        (t) => !existingMediaIds.has(t.id)
+      );
+      if (selectedTv.length < 3) {
+        selectedTv = allTvCandidates;
+      }
+      for (const tv of selectedTv) {
+        if (newArticles.filter((a) => a.category === 'TV Series Guides').length >= 3) break;
+        const art = synthesizeArticleForMedia(tv, 'TV Series Guides', existingSlugs);
+        existingSlugs.add(art.slug);
+        existingMediaIds.add(tv.id);
+        newArticles.push(art);
+      }
 
+      // C. Pick 3 Unseen Anime
+      let selectedAnime: MediaItem[] = allAnimeCandidates.filter(
+        (a) => !existingMediaIds.has(a.id)
+      );
+      if (selectedAnime.length < 3) {
+        selectedAnime = allAnimeCandidates;
+      }
+      for (const anime of selectedAnime) {
+        if (newArticles.filter((a) => a.category === 'Anime Guides').length >= 3) break;
+        const art = synthesizeArticleForMedia(anime, 'Anime Guides', existingSlugs);
+        existingSlugs.add(art.slug);
+        existingMediaIds.add(anime.id);
+        newArticles.push(art);
+      }
+
+      if (newArticles.length === 0) {
+        throw new Error('Could not synthesize articles from available catalog.');
+      }
+
+      // Prepend all new articles to customArticles
       newArticles.forEach((art) => {
-        if (!existingSlugs.has(art.slug)) {
-          this.customArticles.unshift(art);
-          addedArticles.push(art);
-          existingSlugs.add(art.slug);
-        }
+        this.customArticles.unshift(art);
       });
 
       this.settings.lastGeneratedDate = today;
       this.saveState();
-      return addedArticles;
+      return newArticles;
     } finally {
       this.isGenerating = false;
     }

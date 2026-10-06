@@ -369,6 +369,14 @@ class LiveTrackerService {
     // 3. Connect to live streams SSE
     try {
       this.sseStream = new EventSource(`${CLOUD_STREAM_CHANNEL}/sse`);
+      this.sseStream.onerror = () => {
+        try {
+          this.sseStream?.close();
+        } catch {
+          // ignore
+        }
+        this.sseStream = null;
+      };
       this.sseStream.onmessage = (e) => {
         try {
           const raw = JSON.parse(e.data);
@@ -383,6 +391,14 @@ class LiveTrackerService {
 
       // 4. Connect to live presence SSE
       this.ssePresence = new EventSource(`${CLOUD_PRESENCE_CHANNEL}/sse`);
+      this.ssePresence.onerror = () => {
+        try {
+          this.ssePresence?.close();
+        } catch {
+          // ignore
+        }
+        this.ssePresence = null;
+      };
       this.ssePresence.onmessage = (e) => {
         try {
           const raw = JSON.parse(e.data);
