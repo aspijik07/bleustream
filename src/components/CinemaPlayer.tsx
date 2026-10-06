@@ -23,12 +23,10 @@ import {
 import { MediaItem, TVEpisode, CastMember, SeasonSummary } from '../types';
 import { STREAMING_SERVERS } from '../config/servers';
 import { fetchTVSeason, fetchTVDetails, fetchDetails, fetchCredits, fetchSimilar, getPosterUrl, getBackdropUrl } from '../services/tmdb';
-import { triggerActiveLocker, triggerNativeOGAdsLocker, subscribeToLockerUnlock, markMediaUnlocked } from '../utils/locker';
 import { useLanguage } from '../context/LanguageContext';
 import { WatchPartyModal } from './WatchPartyModal';
 import { CommunityReviews } from './CommunityReviews';
 import { liveTracker } from '../services/liveTracker';
-import { lockerConfig, LockerConfig } from '../services/lockerConfig';
 
 interface CinemaPlayerProps {
   media: MediaItem;
@@ -54,9 +52,6 @@ export const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
   const { t } = useLanguage();
   const isTv = media.media_type === 'tv' || !!media.first_air_date;
   const title = media.title || media.name || 'Now Streaming';
-  const [lockerCfg, setLockerCfg] = useState<LockerConfig>(lockerConfig.getConfig());
-  const lockerDelaySeconds = lockerCfg.delaySeconds || 15;
-  const isLockerEnabled = lockerCfg.enabled;
 
   const [selectedServer, setSelectedServer] = useState(STREAMING_SERVERS[0]);
   const [currentSeason, setCurrentSeason] = useState(initialSeason);
@@ -87,136 +82,21 @@ export const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
       window.open = originalOpen;
     };
   }, [isAdBlockEnabled]);
-  const [isLockedInternal, setIsLockedInternal] = useState(false);
-  const [countdownSeconds, setCountdownSeconds] = useState(lockerDelaySeconds);
-  const [isCountingDown, setIsCountingDown] = useState(false);
+
   const [showWatchPartyModal, setShowWatchPartyModal] = useState(false);
 
-  // Sync with lockerConfig updates in real-time
-  useEffect(() => {
-    const unsub = lockerConfig.subscribe((cfg) => {
-      setLockerCfg(cfg);
-      setCountdownSeconds(cfg.delaySeconds);
-    });
-    return unsub;
-  }, []);
-
-  const effectiveLocked = isLocked || isLockedInternal;
-
-  const isAlreadyUnlocked = () => {
-    try {
-      const cfg = lockerConfig.get();
-      if (cfg.triggerMode === 'once_per_session') {
-        return sessionStorage.getItem('bleustream_session_unlocked') === 'true';
-      }
-      return sessionStorage.getItem(`unlocked_${media.id}`) === 'true';
-    } catch {
-      return false;
-    }
-  };
-
-  // Reset playback and countdown whenever a new media is chosen
+  // Reset playback whenever a new media is chosen
   useEffect(() => {
     setHasStartedPlayback(false);
-    setIsLockedInternal(false);
-    setIsCountingDown(false);
-    setCountdownSeconds(lockerDelaySeconds);
     setIsPlayerLoading(false);
 
     return () => {
       liveTracker.setWatchingState(false);
     };
-  }, [media.id, lockerDelaySeconds]);
-
-  const [isUnlockedThisStream, setIsUnlockedThisStream] = useState(false);
-
-  // Sync prop unlock: when unlocked, resume playback smoothly
-  useEffect(() => {
-    if (!isLocked && isUnlockedThisStream) {
-      setIsLockedInternal(false);
-      setIsCountingDown(false);
-      setHasStartedPlayback(true);
-      setIsPlayerLoading(false);
-    }
-  }, [isLocked, isUnlockedThisStream]);
-
-  // Auto-resume when OGAds/AdBlueMedia completion event or callback is fired
-  useEffect(() => {
-    const unsubscribe = subscribeToLockerUnlock(() => {
-      markMediaUnlocked(media.id);
-      liveTracker.recordLockerEvent(media, 'unlocked');
-      setIsUnlockedThisStream(true);
-      setIsLockedInternal(false);
-      setIsCountingDown(false);
-      setHasStartedPlayback(true);
-      setIsPlayerLoading(false);
-    });
-    return unsubscribe;
   }, [media.id]);
 
-  // Start Countdown: ONLY starts if user has initiated playback AND locker is enabled AND triggerOnDelay is ON
-  useEffect(() => {
-    const cfg = lockerConfig.get();
-
-    // Do nothing if playback has NOT started, locker disabled, or delay trigger is turned OFF in Admin Panel
-    if (!hasStartedPlayback || !isLockerEnabled || !cfg.triggerOnDelay) {
-      setIsCountingDown(false);
-      return;
-    }
-
-    if (effectiveLocked || isUnlockedThisStream || isAlreadyUnlocked()) {
-      setIsCountingDown(false);
-      return;
-    }
-
-    if (!isCountingDown) {
-      setCountdownSeconds(lockerDelaySeconds);
-      setIsCountingDown(true);
-    }
-  }, [hasStartedPlayback, isLockerEnabled, effectiveLocked, isCountingDown, lockerDelaySeconds, isUnlockedThisStream]);
-
-  // 20-Second Countdown Timer: ticks 20s silently while user is watching, then halts playback & triggers LAST();
-  useEffect(() => {
-    if (!isCountingDown || effectiveLocked) return;
-
-    const interval = setInterval(() => {
-      setCountdownSeconds((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          setIsCountingDown(false);
-          // Playback finished delay seconds: stop movie & trigger active locker
-          setIsLockedInternal(true);
-          liveTracker.recordLockerEvent(media, 'prompted');
-          triggerActiveLocker();
-          if (onTriggerLocker) {
-            onTriggerLocker();
-          }
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [isCountingDown, effectiveLocked, onTriggerLocker, media]);
-
-  // Center Play triangle button click handler
+  // Center Play triangle button click handler - Starts stream instantly
   const handleStartPlayCenter = () => {
-    const cfg = lockerConfig.get();
-
-    // Trigger locker on play click ONLY if: locker enabled + triggerOnPlay is ON + not already unlocked
-    if (cfg.enabled && cfg.triggerOnPlay && !isAlreadyUnlocked()) {
-      liveTracker.recordStreamStart(media, currentSeason, currentEpisode, selectedServer.name);
-      liveTracker.recordLockerEvent(media, 'prompted');
-      setIsLockedInternal(true);
-      triggerActiveLocker();
-      if (onTriggerLocker) {
-        onTriggerLocker();
-      }
-      return;
-    }
-
-    // No locker on play - start stream directly
     setHasStartedPlayback(true);
     setIsPlayerLoading(true);
     liveTracker.recordStreamStart(media, currentSeason, currentEpisode, selectedServer.name);
@@ -226,14 +106,6 @@ export const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
       setIsPlayerLoading(false);
     }, 800);
 
-    if (isAlreadyUnlocked()) {
-      setIsCountingDown(false);
-      setIsLockedInternal(false);
-      onStreamStarted();
-      return;
-    }
-
-    setIsLockedInternal(false);
     onStreamStarted();
   };
 
@@ -776,35 +648,8 @@ export const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
             </div>
           )}
 
-          {/* Clean Paused State: Video stops when locked, native Human Verification locker is active */}
-          {effectiveLocked && (
-            <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/95 p-6 text-center space-y-4 animate-fade-in select-none">
-              <div className="w-14 h-14 rounded-full bg-sky-500/20 border border-sky-400/50 flex items-center justify-center text-sky-400 shadow-xl shadow-sky-950/60">
-                <Lock className="w-7 h-7 animate-pulse text-amber-400" />
-              </div>
-              <div className="space-y-1.5 max-w-sm">
-                <h3 className="text-base sm:text-lg font-bold text-white">
-                  Stream Paused
-                </h3>
-                <p className="text-xs text-zinc-400">
-                  Verification in progress. Complete the offer in the verification window to resume watching.
-                </p>
-              </div>
-              <div className="flex items-center gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => triggerActiveLocker()}
-                  className="px-5 py-2.5 bg-[#0ea5e9] hover:bg-sky-600 active:scale-95 text-white rounded-xl text-xs font-semibold transition cursor-pointer shadow-lg shadow-sky-950/50 flex items-center gap-2"
-                >
-                  <Lock className="w-3.5 h-3.5" />
-                  <span>Open Verification</span>
-                </button>
-              </div>
-            </div>
-          )}
-
           {/* In-Site Loading Buffer Indicator */}
-          {hasStartedPlayback && !effectiveLocked && isPlayerLoading && (
+          {hasStartedPlayback && isPlayerLoading && (
             <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center p-6 text-center space-y-3 animate-fade-in pointer-events-none transition-opacity duration-300">
               <div className="relative">
                 <div className="w-12 h-12 rounded-full border-3 border-zinc-800 border-t-[#0ea5e9] animate-spin" />
@@ -822,7 +667,7 @@ export const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
           )}
 
           {/* Active Player Iframe */}
-          {hasStartedPlayback && !effectiveLocked && (
+          {hasStartedPlayback && (
             <iframe
               key={`${selectedServer.id}-${media.id}-${currentSeason}-${currentEpisode}-${iframeKey}-${isAdBlockEnabled}`}
               src={activeStreamUrl}

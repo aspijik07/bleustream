@@ -20,11 +20,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onTriggerTestLocker,
 }) => {
   const [apiKey, setApiKey] = useState(settings.tmdbApiKey);
-  const [lockerEnabled, setLockerEnabled] = useState(settings.lockerEnabled);
+  const [lockerEnabled, setLockerEnabled] = useState(false);
   const [provider, setProvider] = useState<LockerProvider>(() => lockerConfig.get().provider || 'ogads');
   const [lockerId, setLockerId] = useState(() => {
     const id = lockerConfig.get().lockerId || settings.lockerId;
-    return (id && id !== 'o4e5p2') ? id : '4o7vvr';
+    return (id && id !== 'o4e5p2' && id !== '4o7vvr') ? id : '';
   });
   const [adBlueIt, setAdBlueIt] = useState<string | number>(() => lockerConfig.get().adBlueMedia?.it ?? 4192251);
   const [adBlueKey, setAdBlueKey] = useState<string>(() => lockerConfig.get().adBlueMedia?.key || 'db00c');
@@ -75,8 +75,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const handleResetDefault = () => {
     setApiKey(DEFAULT_TMDB_API_KEY);
-    setLockerEnabled(true);
-    setLockerId('4o7vvr');
+    setLockerEnabled(false);
+    setLockerId('');
     setDelaySeconds(20);
   };
 

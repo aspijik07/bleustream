@@ -21,6 +21,7 @@ import {
   Check,
   ShieldCheck,
   Zap,
+  ExternalLink,
 } from 'lucide-react';
 import { SEO_ARTICLES, SEOArticle } from '../data/seoArticles';
 import { pseoEngine } from '../services/pseoEngine';
@@ -848,6 +849,66 @@ export const ArticlesHub: React.FC<ArticlesHubProps> = ({
                 Sandbox sandbox architecture filtering aggressive redirects and invasive popups.
               </p>
             </div>
+          </div>
+        </div>
+
+        {/* ================= GOOGLEBOT CRAWL DIRECTORY & DYNAMIC SITEMAP HUB ================= */}
+        <div className="p-6 sm:p-8 rounded-3xl bg-[#0b0c0e] border border-zinc-800/90 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-800/80">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                <h3 className="text-base sm:text-lg font-black text-white uppercase tracking-wider">
+                  Search Engine Index & Complete XML Sitemap Directory
+                </h3>
+              </div>
+              <p className="text-xs text-zinc-400">
+                All {allArticles.length} cinema guides dynamically registered for Googlebot, Bingbot & DuckDuckGo crawler indexing.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <a
+                href="/sitemap.xml"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 hover:border-sky-500/50 text-sky-400 hover:text-sky-300 text-xs font-bold rounded-xl transition flex items-center gap-2 cursor-pointer shadow-sm"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>View Live sitemap.xml</span>
+              </a>
+            </div>
+          </div>
+
+          {/* Complete HTML Links Grid for Ultra-Fast Crawling */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {allArticles.map((art, idx) => (
+              <a
+                key={art.id}
+                href={`/?tab=articles&article=${art.slug}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleOpenArticle(art);
+                }}
+                className="p-3 rounded-xl bg-zinc-950/70 border border-zinc-800/70 hover:border-red-500/50 hover:bg-zinc-900/60 transition group flex flex-col justify-between space-y-2 cursor-pointer"
+              >
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-[10px] text-zinc-500">
+                    <span className="font-mono text-zinc-400">#{idx + 1} • {art.category}</span>
+                    <span className="text-amber-400/90 font-mono">Priority 0.85</span>
+                  </div>
+                  <h4 className="text-xs font-bold text-zinc-200 group-hover:text-red-400 transition line-clamp-2 leading-snug">
+                    {art.title}
+                  </h4>
+                </div>
+                <div className="flex items-center justify-between text-[10px] text-zinc-500 pt-1 border-t border-zinc-900">
+                  <span className="font-mono">{art.publishedDate}</span>
+                  <span className="text-red-400 group-hover:translate-x-1 transition flex items-center gap-1 font-semibold">
+                    Read Guide →
+                  </span>
+                </div>
+              </a>
+            ))}
           </div>
         </div>
       </div>

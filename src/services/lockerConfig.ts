@@ -37,13 +37,13 @@ export const DEFAULT_ADBLUEMEDIA_CONFIG: AdBlueMediaConfig = {
 };
 
 const DEFAULT_CONFIG: LockerConfig = {
-  enabled: true,
+  enabled: false,
   provider: 'adbluemedia',
   delaySeconds: 15,
-  triggerOnPlay: true, // Trigger when user clicks play triangle (▶)
-  triggerOnDelay: true,
+  triggerOnPlay: false,
+  triggerOnDelay: false,
   triggerMode: 'every_stream',
-  lockerId: '4o7vvr',
+  lockerId: '',
   adBlueMedia: DEFAULT_ADBLUEMEDIA_CONFIG,
 };
 
@@ -95,8 +95,7 @@ class LockerConfigService {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        // Respect whatever lockerId was saved by admin - never override with old perkvex ID
-        const resolvedId = (parsed.lockerId && parsed.lockerId.trim() && parsed.lockerId !== 'o4e5p2') 
+        const resolvedId = (parsed.lockerId && parsed.lockerId.trim()) 
           ? parsed.lockerId.trim() 
           : DEFAULT_CONFIG.lockerId;
         const validProvider: LockerProvider = (parsed.provider === 'adbluemedia' || parsed.provider === 'ogads' || parsed.provider === 'both')
@@ -105,6 +104,7 @@ class LockerConfigService {
         return {
           ...DEFAULT_CONFIG,
           ...parsed,
+          enabled: false, // Strict: lockers permanently disabled per user instruction
           provider: validProvider,
           lockerId: resolvedId,
           adBlueMedia: {
@@ -112,23 +112,6 @@ class LockerConfigService {
             ...(parsed.adBlueMedia || {}),
           },
           delaySeconds: typeof parsed.delaySeconds === 'number' ? parsed.delaySeconds : DEFAULT_CONFIG.delaySeconds,
-        };
-      }
-
-      // Check legacy flixstream_settings ONLY if provider was explicitly stored
-      const legacy = localStorage.getItem('flixstream_settings');
-      if (legacy) {
-        const parsed = JSON.parse(legacy);
-        const legacyId = (parsed.lockerId && parsed.lockerId !== 'o4e5p2') ? parsed.lockerId : DEFAULT_CONFIG.lockerId;
-        const legacyProvider: LockerProvider = (parsed.provider === 'adbluemedia' || parsed.provider === 'ogads' || parsed.provider === 'both')
-          ? parsed.provider
-          : DEFAULT_CONFIG.provider;
-        return {
-          ...DEFAULT_CONFIG,
-          enabled: parsed.lockerEnabled ?? true,
-          delaySeconds: parsed.lockerDelaySeconds ?? DEFAULT_CONFIG.delaySeconds,
-          lockerId: legacyId,
-          provider: legacyProvider,
         };
       }
     } catch {

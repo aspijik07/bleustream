@@ -2261,6 +2261,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
                     )}
                   </button>
 
+                  <a
+                    href="https://bleustream.pages.dev/sitemap.xml"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3.5 py-2.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 hover:border-zinc-600 text-sky-400 hover:text-sky-300 text-xs font-bold rounded-xl flex items-center gap-2 transition cursor-pointer"
+                  >
+                    <ExternalLink className="w-4 h-4 text-sky-400" />
+                    <span>Open Live sitemap.xml</span>
+                  </a>
+
                   {pseoStats.generatedCount > 0 && (
                     <button
                       type="button"

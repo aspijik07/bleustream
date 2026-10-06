@@ -38,14 +38,11 @@ import { CinemaPlayer } from './components/CinemaPlayer';
 import { MediaDetailModal } from './components/MediaDetailModal';
 import { TrailerModal } from './components/TrailerModal';
 import { SettingsModal } from './components/SettingsModal';
-import { triggerNativeOGAdsLocker, triggerActiveLocker } from './utils/locker';
 import { AdminLoginModal } from './components/admin/AdminLoginModal';
 import { AdminDashboard } from './components/admin/AdminDashboard';
-import { LockerModal } from './components/LockerModal';
 import { ArticlesHub } from './components/ArticlesHub';
 import { adminAuth } from './services/adminAuth';
 import { liveTracker } from './services/liveTracker';
-import { lockerConfig } from './services/lockerConfig';
 
 const CATEGORIES = ['All', 'Action', 'Comedy', 'Horror', 'Sci-Fi', 'Drama'];
 
@@ -474,9 +471,8 @@ export default function App() {
     }
   };
 
-  // Trigger test locker from settings
+  // Test settings callback
   const handleTriggerTestLocker = () => {
-    triggerActiveLocker();
     setShowSettings(false);
   };
 
@@ -1525,9 +1521,6 @@ export default function App() {
         isOpen={isAdminDashboardOpen}
         onClose={() => setIsAdminDashboardOpen(false)}
       />
-
-      {/* Universal In-Page Verification Locker Modal (Works for Mobile & PC) */}
-      <LockerModal mediaId={activeMedia?.id} />
     </div>
   );
 }
