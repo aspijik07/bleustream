@@ -107,36 +107,13 @@ export default function App() {
     }
   });
 
-  // Settings - synchronized with unified lockerConfig
-  const [settings, setSettings] = useState<AppSettings>(() => {
-    const cfg = lockerConfig.getConfig();
-    return {
-      tmdbApiKey: DEFAULT_TMDB_API_KEY,
-      lockerEnabled: cfg.enabled,
-      lockerId: cfg.lockerId || '4o7vvr',
-      lockerDelaySeconds: cfg.delaySeconds || 15,
-      provider: cfg.provider,
-      triggerOnPlay: cfg.triggerOnPlay,
-      triggerOnDelay: cfg.triggerOnDelay,
-      triggerMode: cfg.triggerMode,
-    };
-  });
-
-  useEffect(() => {
-    const unsub = lockerConfig.subscribe((cfg) => {
-      setSettings((prev) => ({
-        ...prev,
-        lockerEnabled: cfg.enabled,
-        lockerId: cfg.lockerId,
-        lockerDelaySeconds: cfg.delaySeconds,
-        provider: cfg.provider,
-        triggerOnPlay: cfg.triggerOnPlay,
-        triggerOnDelay: cfg.triggerOnDelay,
-        triggerMode: cfg.triggerMode,
-      }));
-    });
-    return unsub;
-  }, []);
+  // App Settings
+  const [settings, setSettings] = useState<AppSettings>(() => ({
+    tmdbApiKey: DEFAULT_TMDB_API_KEY,
+    lockerEnabled: false,
+    lockerId: '',
+    lockerDelaySeconds: 15,
+  }));
 
   // Dynamic Tab SEO Optimization (Titles & Descriptions for high Google Rankings)
   useEffect(() => {
