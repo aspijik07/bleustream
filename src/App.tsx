@@ -44,6 +44,7 @@ import { LockerModal } from './components/LockerModal';
 import { ArticlesHub } from './components/ArticlesHub';
 import { adminAuth } from './services/adminAuth';
 import { liveTracker } from './services/liveTracker';
+import { lockerConfig } from './services/lockerConfig';
 
 const CATEGORIES = ['All', 'Action', 'Comedy', 'Horror', 'Sci-Fi', 'Drama'];
 
@@ -111,9 +112,9 @@ export default function App() {
   // App Settings
   const [settings, setSettings] = useState<AppSettings>(() => ({
     tmdbApiKey: DEFAULT_TMDB_API_KEY,
-    lockerEnabled: false,
-    lockerId: '',
-    lockerDelaySeconds: 15,
+    lockerEnabled: lockerConfig.get().enabled,
+    lockerId: lockerConfig.get().lockerId || '4o7vvr',
+    lockerDelaySeconds: lockerConfig.get().delaySeconds || 15,
   }));
 
   // Dynamic Tab SEO Optimization (Titles & Descriptions for high Google Rankings)

@@ -1428,9 +1428,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
               <div className="space-y-4">
                 <div className="flex items-center justify-between text-xs text-zinc-400">
                   <span>Fast Gate (3s)</span>
-                  <span className="text-amber-400 font-bold text-sm bg-black/60 px-3 py-1 rounded-lg border border-zinc-800">
-                    {lockerSettings.delaySeconds}s Delay
-                  </span>
+                  <div className="flex items-center gap-1.5 bg-black/70 px-3 py-1 rounded-xl border border-amber-500/50">
+                    <input
+                      type="number"
+                      min="1"
+                      max="300"
+                      value={lockerSettings.delaySeconds}
+                      onChange={(e) => {
+                        const val = Math.max(1, parseInt(e.target.value, 10) || 1);
+                        const next = { ...lockerSettings, delaySeconds: val, enabled: true };
+                        setLockerSettings(next);
+                        lockerConfig.updateConfig(next);
+                      }}
+                      className="w-14 bg-transparent text-amber-300 font-black text-sm text-center outline-none focus:ring-1 focus:ring-amber-400 rounded"
+                    />
+                    <span className="text-amber-400 font-bold text-xs">sec Delay</span>
+                  </div>
                   <span>Generous Preview (120s)</span>
                 </div>
 
@@ -1523,11 +1536,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {[
-                    { id: 'adbluemedia', name: 'AdBlueMedia (CPABuild)', desc: 'CloudFront script with _Ri() recall', badge: 'Active Network', color: 'from-blue-600/30 to-cyan-950/50 border-cyan-500 text-cyan-300' },
-                    { id: 'ogads', name: 'OGAds Native', desc: `Direct locker ID (${lockerSettings.lockerId || '4o7vvr'}) with AppSave CDN`, badge: 'OGAds Direct', color: 'from-sky-500/30 to-amber-950/50 border-sky-400 text-red-300' },
-                    { id: 'both', name: 'Multi-Network (Both)', desc: 'AdBlueMedia + OGAds fallback rotation', badge: 'Dual Rotation', color: 'from-purple-600/30 to-indigo-950/50 border-purple-500 text-purple-300' },
+                    { id: 'ogads', name: 'OGAds Native', desc: `Direct locker ID (${lockerSettings.lockerId || '4o7vvr'}) with AppSave CDN`, badge: 'Active Network', color: 'from-amber-600/30 to-sky-950/50 border-amber-500 text-amber-300' },
+                    { id: 'adbluemedia', name: 'AdBlueMedia (CPABuild)', desc: 'CloudFront script with _Ri() recall', badge: 'CPABuild CDN', color: 'from-blue-600/30 to-cyan-950/50 border-cyan-500 text-cyan-300' },
+                    { id: 'both', name: 'Multi-Network (Both)', desc: 'OGAds + AdBlueMedia fallback rotation', badge: 'Dual Rotation', color: 'from-purple-600/30 to-indigo-950/50 border-purple-500 text-purple-300' },
                   ].map((p) => {
-                    const isSelected = (lockerSettings.provider || 'adbluemedia') === p.id;
+                    const isSelected = (lockerSettings.provider || 'ogads') === p.id;
                     return (
                       <button
                         key={p.id}

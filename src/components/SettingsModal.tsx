@@ -20,16 +20,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onTriggerTestLocker,
 }) => {
   const [apiKey, setApiKey] = useState(settings.tmdbApiKey);
-  const [lockerEnabled, setLockerEnabled] = useState(false);
+  const [lockerEnabled, setLockerEnabled] = useState(() => lockerConfig.get().enabled);
   const [provider, setProvider] = useState<LockerProvider>(() => lockerConfig.get().provider || 'ogads');
   const [lockerId, setLockerId] = useState(() => {
     const id = lockerConfig.get().lockerId || settings.lockerId;
-    return (id && id !== 'o4e5p2' && id !== '4o7vvr') ? id : '';
+    return (id && id !== 'o4e5p2') ? id : '4o7vvr';
   });
   const [adBlueIt, setAdBlueIt] = useState<string | number>(() => lockerConfig.get().adBlueMedia?.it ?? 4192251);
   const [adBlueKey, setAdBlueKey] = useState<string>(() => lockerConfig.get().adBlueMedia?.key || 'db00c');
-  const [triggerOnPlay, setTriggerOnPlay] = useState<boolean>(() => lockerConfig.get().triggerOnPlay ?? true);
-  const [delaySeconds, setDelaySeconds] = useState(settings.lockerDelaySeconds);
+  const [triggerOnPlay, setTriggerOnPlay] = useState<boolean>(() => lockerConfig.get().triggerOnPlay ?? false);
+  const [delaySeconds, setDelaySeconds] = useState(() => lockerConfig.get().delaySeconds || 15);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [downloadingZip, setDownloadingZip] = useState(false);
   const [relockedSuccess, setRelockedSuccess] = useState(false);

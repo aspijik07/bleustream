@@ -149,21 +149,24 @@ export const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
   };
 
   // Precise Playback Delay Countdown Timer
-  // Automatically triggers the active CPA locker (AdBlueMedia or OGAds) after delaySeconds
+  // Automatically triggers the active CPA locker (OGAds or AdBlueMedia) after delaySeconds
   useEffect(() => {
     if (!hasStartedPlayback || isUnlocked) {
       setElapsedPlaybackSeconds(0);
       return;
     }
 
-    const cfg = lockerCfg;
+    const cfg = lockerConfig.get();
     if (!cfg.enabled || !cfg.triggerOnDelay) {
       return;
     }
 
-    const targetDelay = cfg.delaySeconds || 10;
-
     const interval = setInterval(() => {
+      const activeCfg = lockerConfig.get();
+      const targetDelay = typeof activeCfg.delaySeconds === 'number' && activeCfg.delaySeconds > 0
+        ? activeCfg.delaySeconds
+        : 15;
+
       setElapsedPlaybackSeconds((prev) => {
         const next = prev + 1;
         if (next >= targetDelay && !hasTriggeredThisSession) {
@@ -177,7 +180,7 @@ export const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [hasStartedPlayback, isUnlocked, lockerCfg, hasTriggeredThisSession]);
+  }, [hasStartedPlayback, isUnlocked, lockerCfg.delaySeconds, lockerCfg.enabled, hasTriggeredThisSession]);
 
   // Advanced SEO Dynamic Optimization (Title, Meta, OpenGraph, Twitter, and Schema.org JSON-LD)
   useEffect(() => {
@@ -794,16 +797,6 @@ export const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
 
           {/* Floating Player Utility Toolbar */}
           <div className="absolute top-3 right-3 flex items-center gap-1.5 z-20 opacity-80 hover:opacity-100 transition-opacity duration-200">
-            {/* Live Delay Countdown Preview Badge */}
-            {!isUnlocked && lockerCfg.enabled && lockerCfg.triggerOnDelay && hasStartedPlayback && !isLockedByDelay && (
-              <div
-                title="Locker Delay Countdown"
-                className="px-2.5 py-1.5 bg-amber-950/80 border border-amber-500/40 text-amber-300 text-xs font-bold rounded-lg backdrop-blur-md flex items-center gap-1.5 shadow"
-              >
-                <Clock className="w-3.5 h-3.5 text-amber-400 animate-spin" />
-                <span>Preview: {Math.max(0, (lockerCfg.delaySeconds || 10) - elapsedPlaybackSeconds)}s</span>
-              </div>
-            )}
             <button
               type="button"
               onClick={() => {

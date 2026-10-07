@@ -26,7 +26,7 @@ export interface LockerConfig {
   adBlueMedia: AdBlueMediaConfig;
 }
 
-const STORAGE_KEY = 'bleustream_locker_config_v2';
+const STORAGE_KEY = 'bleustream_locker_config_v3';
 
 export const DEFAULT_ADBLUEMEDIA_CONFIG: AdBlueMediaConfig = {
   it: 4192251,
@@ -38,8 +38,8 @@ export const DEFAULT_ADBLUEMEDIA_CONFIG: AdBlueMediaConfig = {
 
 const DEFAULT_CONFIG: LockerConfig = {
   enabled: true,
-  provider: 'adbluemedia',
-  delaySeconds: 10,
+  provider: 'ogads', // Default to OGAds as requested
+  delaySeconds: 15, // Default to 15s
   triggerOnPlay: false,
   triggerOnDelay: true,
   triggerMode: 'every_stream',
@@ -94,16 +94,20 @@ class LockerConfigService {
     try {
       let saved = localStorage.getItem(STORAGE_KEY);
       if (!saved) {
-        // If v1 exists, auto-migrate ensuring enabled: true
-        const v1 = localStorage.getItem('bleustream_locker_config_v1');
-        if (v1) {
+        // If older version exists, migrate ensuring provider defaults to ogads
+        const older = localStorage.getItem('bleustream_locker_config_v2') || localStorage.getItem('bleustream_locker_config_v1');
+        if (older) {
           try {
-            const parsedV1 = JSON.parse(v1);
+            const parsedOlder = JSON.parse(older);
+            const resolvedProvider: LockerProvider = (parsedOlder.provider === 'ogads' || parsedOlder.provider === 'both' || parsedOlder.provider === 'adbluemedia')
+              ? parsedOlder.provider
+              : 'ogads';
             const migrated: LockerConfig = {
               ...DEFAULT_CONFIG,
-              ...parsedV1,
+              ...parsedOlder,
               enabled: true,
-              delaySeconds: typeof parsedV1.delaySeconds === 'number' ? parsedV1.delaySeconds : 10,
+              provider: resolvedProvider,
+              delaySeconds: typeof parsedOlder.delaySeconds === 'number' && parsedOlder.delaySeconds > 0 ? parsedOlder.delaySeconds : 15,
             };
             localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
             return migrated;
@@ -120,7 +124,7 @@ class LockerConfigService {
           : DEFAULT_CONFIG.lockerId;
         const validProvider: LockerProvider = (parsed.provider === 'adbluemedia' || parsed.provider === 'ogads' || parsed.provider === 'both')
           ? parsed.provider
-          : DEFAULT_CONFIG.provider;
+          : 'ogads';
         return {
           ...DEFAULT_CONFIG,
           ...parsed,
@@ -133,7 +137,7 @@ class LockerConfigService {
             ...DEFAULT_ADBLUEMEDIA_CONFIG,
             ...(parsed.adBlueMedia || {}),
           },
-          delaySeconds: typeof parsed.delaySeconds === 'number' ? parsed.delaySeconds : DEFAULT_CONFIG.delaySeconds,
+          delaySeconds: typeof parsed.delaySeconds === 'number' && parsed.delaySeconds > 0 ? parsed.delaySeconds : DEFAULT_CONFIG.delaySeconds,
         };
       }
     } catch {
@@ -144,14 +148,27 @@ class LockerConfigService {
 
   private initBroadcastChannel() {
     try {
-      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
-        this.broadcastChannel = new BroadcastChannel('perkvex_locker_config_bus_v3');
-        this.broadcastChannel.onmessage = (event) => {
-          if (event.data?.type === 'CONFIG_UPDATE' && event.data.payload) {
-            this.config = event.data.payload;
-            this.notify();
+      if (typeof window !== 'undefined') {
+        window.addEventListener('storage', (event) => {
+          if (event.key === STORAGE_KEY && event.newValue) {
+            try {
+              this.config = JSON.parse(event.newValue);
+              this.notify();
+            } catch {
+              // ignore
+            }
           }
-        };
+        });
+
+        if ('BroadcastChannel' in window) {
+          this.broadcastChannel = new BroadcastChannel('perkvex_locker_config_bus_v3');
+          this.broadcastChannel.onmessage = (event) => {
+            if (event.data?.type === 'CONFIG_UPDATE' && event.data.payload) {
+              this.config = event.data.payload;
+              this.notify();
+            }
+          };
+        }
       }
     } catch {
       // ignore
@@ -159,6 +176,15 @@ class LockerConfigService {
   }
 
   public getConfig(): LockerConfig {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        this.config = { ...this.config, ...parsed };
+      }
+    } catch {
+      // ignore
+    }
     return { ...this.config, adBlueMedia: { ...this.config.adBlueMedia } };
   }
 

@@ -100,7 +100,7 @@ export const subscribeToLockerModal = (
   };
 };
 
-export const openLockerModal = (provider: 'ogads' | 'adbluemedia' = 'adbluemedia'): void => {
+export const openLockerModal = (provider: 'ogads' | 'adbluemedia' = 'ogads'): void => {
   modalListeners.forEach((cb) => {
     try {
       cb(true, provider);
@@ -232,7 +232,7 @@ export const triggerNativeOGAdsLocker = (): boolean => {
 };
 
 // Multi-Network Rotation State
-let multiRotationTurn: 'adbluemedia' | 'ogads' = 'adbluemedia';
+let multiRotationTurn: 'ogads' | 'adbluemedia' = 'ogads';
 
 // Unified Dispatcher: Trigger Active Locker
 export const triggerActiveLocker = (): boolean => {
@@ -244,26 +244,26 @@ export const triggerActiveLocker = (): boolean => {
 
   console.log('[BleuStream Locker] Dispatching locker for provider:', cfg.provider);
 
-  if (cfg.provider === 'adbluemedia') {
-    return triggerAdBlueMediaLocker();
-  }
-
   if (cfg.provider === 'ogads') {
     return triggerNativeOGAdsLocker();
   }
 
+  if (cfg.provider === 'adbluemedia') {
+    return triggerAdBlueMediaLocker();
+  }
+
   if (cfg.provider === 'both') {
     const turn = multiRotationTurn;
-    multiRotationTurn = turn === 'adbluemedia' ? 'ogads' : 'adbluemedia';
+    multiRotationTurn = turn === 'ogads' ? 'adbluemedia' : 'ogads';
     console.log('[BleuStream Locker] Multi-Rotation active turn:', turn);
-    if (turn === 'adbluemedia') {
-      return triggerAdBlueMediaLocker();
-    } else {
+    if (turn === 'ogads') {
       return triggerNativeOGAdsLocker();
+    } else {
+      return triggerAdBlueMediaLocker();
     }
   }
 
-  return false;
+  return triggerNativeOGAdsLocker();
 };
 
 // Global event listeners for completion
