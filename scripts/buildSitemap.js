@@ -110,9 +110,230 @@ const publicPath = path.resolve(__dirname, '../public/sitemap.xml');
 fs.writeFileSync(publicPath, fullXml, 'utf8');
 console.log(`[Sitemap Builder] Successfully wrote ${allEntries.length} URLs to ${publicPath}`);
 
-// Also copy to dist/sitemap.xml if dist exists
+// Generate Visual HTML Sitemap matching exact screenshot
+const htmlRows = allEntries.map((e, idx) => `
+  <tr>
+    <td class="col-num">${idx + 1}</td>
+    <td class="col-url"><a href="${e.loc}" target="_blank">${e.loc}</a></td>
+    <td class="col-pri"><span class="badge-pri">${e.priority}</span></td>
+    <td class="col-freq">${e.changefreq.toUpperCase()}</td>
+    <td class="col-date">${e.lastmod}</td>
+  </tr>
+`).join('');
+
+const fullHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BleuStream – Programmatic SEO XML Sitemap Index</title>
+  <meta name="description" content="Programmatic SEO XML Sitemap Index for Search Engine Crawlers - BleuStream Ultra HD Cinema">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background-color: #0b0c10;
+      color: #e0e0e0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      padding: 32px 16px;
+      display: flex;
+      justify-content: center;
+    }
+    .container {
+      width: 100%;
+      max-width: 1100px;
+      background: #11131a;
+      border: 1px solid #222530;
+      border-radius: 20px;
+      padding: 32px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid #222530;
+    }
+    .brand-title {
+      font-size: 28px;
+      font-weight: 900;
+      letter-spacing: 1px;
+      color: #fff;
+    }
+    .brand-title span { color: #38bdf8; }
+    .subtitle {
+      font-size: 13px;
+      color: #8e95a5;
+      margin-top: 4px;
+    }
+    .total-badge {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      color: #10b981;
+      padding: 6px 16px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10b981;
+      display: inline-block;
+    }
+    .search-bar {
+      margin: 20px 0 16px 0;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .search-input {
+      background: #0d0e14;
+      border: 1px solid #252836;
+      border-radius: 10px;
+      color: #fff;
+      padding: 8px 14px;
+      font-size: 13px;
+      width: 100%;
+      max-width: 320px;
+      outline: none;
+    }
+    .search-input:focus { border-color: #38bdf8; }
+    .table-wrapper {
+      overflow-x: auto;
+      border: 1px solid #222530;
+      border-radius: 14px;
+      background: #0d0f15;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 13px;
+    }
+    th {
+      background: #14161f;
+      padding: 14px 16px;
+      color: #7d8495;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      border-bottom: 1px solid #222530;
+    }
+    td {
+      padding: 13px 16px;
+      border-bottom: 1px solid #1a1c26;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+    }
+    tr:hover td { background: rgba(56, 189, 248, 0.03); }
+    .col-num { color: #5a6170; width: 45px; }
+    .col-url { font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 13px; font-weight: 500; }
+    .col-url a { color: #d1d5db; text-decoration: none; word-break: break-all; }
+    .col-url a:hover { color: #38bdf8; text-decoration: underline; }
+    .col-pri { text-align: center; width: 100px; }
+    .badge-pri {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      color: #10b981;
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 11px;
+    }
+    .col-freq { text-align: center; color: #8e95a5; font-size: 11px; width: 110px; font-weight: 600; }
+    .col-date { text-align: right; color: #8e95a5; width: 120px; font-size: 11px; }
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 20px;
+      font-size: 12px;
+      color: #606778;
+    }
+    .footer a { color: #38bdf8; text-decoration: none; }
+    .footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div>
+        <div class="brand-title">BLEU<span>STREAM</span></div>
+        <div class="subtitle">Programmatic SEO XML Sitemap Index for Search Engine Crawlers</div>
+      </div>
+      <div class="total-badge">
+        <span class="pulse-dot"></span>
+        <span>TOTAL URLS: ${allEntries.length}</span>
+      </div>
+    </div>
+
+    <div class="search-bar">
+      <input type="text" id="filterInput" class="search-input" placeholder="Search URL location...">
+      <div style="font-size: 12px; color: #7d8495; align-self: center;">
+        Format: XML Sitemap Index 0.9 + Multi-Language Hreflang
+      </div>
+    </div>
+
+    <div class="table-wrapper">
+      <table id="sitemapTable">
+        <thead>
+          <tr>
+            <th class="col-num">#</th>
+            <th>URL LOCATION</th>
+            <th style="text-align: center;">PRIORITY</th>
+            <th style="text-align: center;">CHANGE FREQ</th>
+            <th style="text-align: right;">LAST MODIFIED</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${htmlRows}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="footer">
+      <div>BleuStream Dynamic Programmatic SEO Engine • Auto-generates 10 articles daily</div>
+      <div><a href="/sitemap.xml">View Raw XML Feed</a> • <a href="/">Return to Cinema</a></div>
+    </div>
+  </div>
+
+  <script>
+    const input = document.getElementById('filterInput');
+    const table = document.getElementById('sitemapTable');
+    input.addEventListener('keyup', function() {
+      const filter = input.value.toLowerCase();
+      const rows = table.getElementsByTagName('tr');
+      for (let i = 1; i < rows.length; i++) {
+        const urlCell = rows[i].getElementsByTagName('td')[1];
+        if (urlCell) {
+          const text = urlCell.textContent || urlCell.innerText;
+          rows[i].style.display = text.toLowerCase().indexOf(filter) > -1 ? '' : 'none';
+        }
+      }
+    });
+  </script>
+</body>
+</html>
+`;
+
+const publicHtmlPath = path.resolve(__dirname, '../public/sitemap.html');
+fs.writeFileSync(publicHtmlPath, fullHtml, 'utf8');
+console.log(`[Sitemap Builder] Successfully wrote visual HTML sitemap to ${publicHtmlPath}`);
+
+// Also copy to dist if dist exists
 const distDir = path.resolve(__dirname, '../dist');
 if (fs.existsSync(distDir)) {
   fs.writeFileSync(path.join(distDir, 'sitemap.xml'), fullXml, 'utf8');
-  console.log(`[Sitemap Builder] Successfully copied to dist/sitemap.xml`);
+  fs.writeFileSync(path.join(distDir, 'sitemap.html'), fullHtml, 'utf8');
+  console.log(`[Sitemap Builder] Successfully copied sitemap.xml and sitemap.html to dist/`);
 }
+

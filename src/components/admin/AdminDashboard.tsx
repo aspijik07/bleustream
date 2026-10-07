@@ -55,6 +55,7 @@ import { triggerNativeOGAdsLocker, triggerAdBlueMediaLocker, triggerActiveLocker
 import { pseoEngine } from '../../services/pseoEngine';
 import { downloadSitemapFile, DEFAULT_SITE_DOMAIN } from '../../services/sitemapGenerator';
 import { SEOArticle } from '../../data/seoArticles';
+import { articleViewsTracker, ArticleViewStats } from '../../services/articleViewsTracker';
 
 interface AdminDashboardProps {
   isOpen: boolean;
@@ -74,6 +75,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
   const [pseoSearchQuery, setPseoSearchQuery] = useState('');
   const [pseoCategoryFilter, setPseoCategoryFilter] = useState<'all' | 'Movie Guides' | 'TV Series Guides' | 'Anime Guides'>('all');
   const [copiedSitemap, setCopiedSitemap] = useState(false);
+  const [topArticlesByViews, setTopArticlesByViews] = useState<ArticleViewStats[]>(() =>
+    articleViewsTracker.getTopArticles(20)
+  );
 
   useEffect(() => {
     const unsub = pseoEngine.subscribe(() => {
@@ -83,9 +87,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
     const unsubLocker = lockerConfig.subscribe((cfg) => {
       setLockerSettings(cfg);
     });
+    const unsubViews = articleViewsTracker.subscribe(() => {
+      setTopArticlesByViews(articleViewsTracker.getTopArticles(20));
+    });
     return () => {
       unsub();
       unsubLocker();
+      unsubViews();
     };
   }, []);
 
@@ -2430,6 +2438,119 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
                   )}
                 </div>
               )}
+            </div>
+
+            {/* 🔥 Top Articles by Real Views Leaderboard */}
+            <div className="bg-[#11131a] border border-zinc-800 rounded-2xl p-5 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800/80 pb-4">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-red-950/70 border border-red-500/40 text-red-400">
+                    <Eye className="w-5 h-5 text-red-500" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-white font-mono flex items-center gap-2">
+                      <span>Top Articles by Real Reader Traffic & Views</span>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-950/60 text-red-400 border border-red-500/30">
+                        LIVE
+                      </span>
+                    </h3>
+                    <p className="text-[11px] text-zinc-400 mt-0.5">
+                      Live tracked total impressions and unique reader sessions across all cinema guides
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <a
+                    href="/sitemap.html"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-1.5 bg-zinc-900 hover:bg-zinc-850 border border-zinc-700/80 text-zinc-200 text-xs font-bold rounded-xl flex items-center gap-1.5 transition"
+                  >
+                    <span>View Visual Sitemap</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                  <span className="px-3 py-1.5 bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-xs font-mono font-bold rounded-xl">
+                    Total Views: {articleViewsTracker.getTotalViewsAllArticles().toLocaleString()}
+                  </span>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto rounded-xl border border-zinc-800/80 bg-zinc-950/60">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-zinc-800 bg-zinc-900/60 text-zinc-400 text-[11px] font-bold uppercase tracking-wider">
+                      <th className="p-3 w-14 text-center">Rank</th>
+                      <th className="p-3">Article Title & Slug</th>
+                      <th className="p-3 text-center">Total Views</th>
+                      <th className="p-3 text-center">Unique Readers</th>
+                      <th className="p-3 text-center">Engagement</th>
+                      <th className="p-3 text-right">Preview</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-850">
+                    {topArticlesByViews.slice(0, 10).map((artStat, idx) => {
+                      const engagement = Math.min(
+                        100,
+                        Math.round((artStat.uniqueReaders / (artStat.totalViews || 1)) * 100)
+                      );
+                      return (
+                        <tr key={artStat.slug} className="hover:bg-zinc-900/40 transition">
+                          <td className="p-3 text-center">
+                            <span
+                              className={`w-6 h-6 rounded-full inline-flex items-center justify-center font-black text-xs font-mono ${
+                                idx === 0
+                                  ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/30'
+                                  : idx === 1
+                                  ? 'bg-zinc-300 text-black'
+                                  : idx === 2
+                                  ? 'bg-amber-700 text-white'
+                                  : 'bg-zinc-800 text-zinc-400'
+                              }`}
+                            >
+                              #{idx + 1}
+                            </span>
+                          </td>
+                          <td className="p-3">
+                            <p className="font-bold text-white truncate max-w-xs sm:max-w-md text-xs">
+                              {artStat.title}
+                            </p>
+                            <p className="text-[11px] text-zinc-500 truncate font-mono mt-0.5">
+                              /{artStat.slug}
+                            </p>
+                          </td>
+                          <td className="p-3 text-center whitespace-nowrap">
+                            <span className="px-2.5 py-1 rounded-full bg-sky-950/60 border border-sky-500/40 text-cyan-300 font-mono font-bold text-xs">
+                              {artStat.totalViews.toLocaleString()} views
+                            </span>
+                          </td>
+                          <td className="p-3 text-center whitespace-nowrap">
+                            <span className="px-2.5 py-1 rounded-full bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 font-mono font-bold text-xs">
+                              {artStat.uniqueReaders.toLocaleString()} readers
+                            </span>
+                          </td>
+                          <td className="p-3 text-center whitespace-nowrap">
+                            <span className="text-zinc-300 font-mono font-bold text-xs">
+                              {engagement}%
+                            </span>
+                          </td>
+                          <td className="p-3 text-right whitespace-nowrap">
+                            <a
+                              href={`/?tab=articles&article=${encodeURIComponent(artStat.slug)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-1.5 text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-lg inline-flex items-center gap-1 text-[11px] font-semibold transition"
+                            >
+                              <span>Read</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
             {/* Articles Table & Search Filter */}

@@ -42,6 +42,7 @@ import { AdminLoginModal } from './components/admin/AdminLoginModal';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { LockerModal } from './components/LockerModal';
 import { ArticlesHub } from './components/ArticlesHub';
+import { SitemapViewer } from './components/SitemapViewer';
 import { adminAuth } from './services/adminAuth';
 import { liveTracker } from './services/liveTracker';
 import { lockerConfig } from './services/lockerConfig';
@@ -50,7 +51,7 @@ const CATEGORIES = ['All', 'Action', 'Comedy', 'Horror', 'Sci-Fi', 'Drama'];
 
 export default function App() {
   // Navigation & Active View
-  const [currentTab, setCurrentTab] = useState<'home' | 'movies' | 'tv' | 'anime' | 'trending' | 'watchlist' | 'history' | 'search' | 'articles'>('home');
+  const [currentTab, setCurrentTab] = useState<'home' | 'movies' | 'tv' | 'anime' | 'trending' | 'watchlist' | 'history' | 'search' | 'articles' | 'sitemap'>('home');
   const [selectedArticleSlug, setSelectedArticleSlug] = useState<string | null>(null);
   const [activeMedia, setActiveMedia] = useState<MediaItem | null>(null);
   const [playerSeason, setPlayerSeason] = useState(1);
@@ -154,6 +155,10 @@ export default function App() {
         title: searchQuery ? `Search: "${searchQuery}" – BleuStream Cinema` : 'Search Movies & TV Shows – BleuStream',
         desc: `Explore and stream full-length movies, TV series, and anime titles matching "${searchQuery || 'all'}" in 1080p Ultra HD on BleuStream.`,
       },
+      sitemap: {
+        title: 'Programmatic SEO XML Sitemap Index – BleuStream',
+        desc: 'Programmatic SEO XML Sitemap Index for Search Engine Crawlers and users on BleuStream.',
+      },
     };
 
     const tabSeo = SEO_TAB_CONFIG[currentTab] || SEO_TAB_CONFIG.home;
@@ -220,7 +225,7 @@ export default function App() {
     try {
       const params = new URLSearchParams(window.location.search);
       const tabParam = params.get('tab');
-      if (tabParam && ['home', 'movies', 'tv', 'anime', 'trending', 'watchlist', 'history', 'articles'].includes(tabParam)) {
+      if (tabParam && ['home', 'movies', 'tv', 'anime', 'trending', 'watchlist', 'history', 'articles', 'sitemap'].includes(tabParam)) {
         setCurrentTab(tabParam as any);
       }
       const articleParam = params.get('article');
@@ -392,7 +397,7 @@ export default function App() {
 
   // Centralized Dynamic HTML5 URL Router for Direct Deep Linking, Crawling & Back/Forward Support
   const updateUrl = (
-    tab: 'home' | 'movies' | 'tv' | 'anime' | 'trending' | 'watchlist' | 'history' | 'search' | 'articles',
+    tab: 'home' | 'movies' | 'tv' | 'anime' | 'trending' | 'watchlist' | 'history' | 'search' | 'articles' | 'sitemap',
     params?: {
       articleSlug?: string | null;
       watchId?: number | null;
@@ -417,6 +422,8 @@ export default function App() {
     } else if (tab === 'search') {
       const q = params?.query !== undefined ? params.query : searchQuery;
       url = q ? `/?tab=search&q=${encodeURIComponent(q)}` : '/?tab=search';
+    } else if (tab === 'sitemap') {
+      url = '/?tab=sitemap';
     } else if (tab !== 'home') {
       url = `/?tab=${tab}`;
     }
@@ -482,7 +489,7 @@ export default function App() {
       if (articleParam) {
         setSelectedArticleSlug(articleParam);
         setCurrentTab('articles');
-      } else if (tabParam && ['home', 'movies', 'tv', 'anime', 'trending', 'watchlist', 'history', 'articles'].includes(tabParam)) {
+      } else if (tabParam && ['home', 'movies', 'tv', 'anime', 'trending', 'watchlist', 'history', 'articles', 'sitemap'].includes(tabParam)) {
         setCurrentTab(tabParam);
         if (tabParam === 'articles') {
           setSelectedArticleSlug(null);
@@ -1490,6 +1497,38 @@ export default function App() {
                 }}
               />
             )}
+
+            {/* View: Visual Sitemap Index (Matching User Screenshot) */}
+            {currentTab === 'sitemap' && (
+              <SitemapViewer
+                onBackToHome={() => {
+                  setCurrentTab('home');
+                  updateUrl('home');
+                }}
+                onNavigateToUrl={(path) => {
+                  const urlParams = new URLSearchParams(path.replace(/^[^\?]*\?/, ''));
+                  const tParam = urlParams.get('tab') as any;
+                  const aParam = urlParams.get('article');
+                  const wParam = urlParams.get('watch');
+                  if (wParam) {
+                    const id = parseInt(wParam, 10);
+                    if (!isNaN(id)) {
+                      handlePlayMediaById(id, 'movie', 'Cinema Stream');
+                    }
+                  } else if (aParam) {
+                    setSelectedArticleSlug(aParam);
+                    setCurrentTab('articles');
+                    updateUrl('articles', { articleSlug: aParam });
+                  } else if (tParam) {
+                    setCurrentTab(tParam);
+                    updateUrl(tParam);
+                  } else {
+                    setCurrentTab('home');
+                    updateUrl('home');
+                  }
+                }}
+              />
+            )}
           </>
         )}
       </main>
@@ -1579,19 +1618,47 @@ export default function App() {
           <p className="text-center md:text-left text-zinc-500 text-[11px]">
             BleuStream uses TMDB v3 API for media metadata and delivers high-performance 1080p / 4K streaming through 7 high-speed mirrors.
           </p>
-          <div className="flex items-center gap-4 text-zinc-400">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-zinc-400">
             <button
-              onClick={() => setCurrentTab('watchlist')}
+              onClick={() => {
+                setCurrentTab('watchlist');
+                updateUrl('watchlist');
+              }}
               className="hover:text-white transition cursor-pointer"
             >
               My List
             </button>
             <span>•</span>
             <button
-              onClick={() => setCurrentTab('history')}
+              onClick={() => {
+                setCurrentTab('history');
+                updateUrl('history');
+              }}
               className="hover:text-white transition cursor-pointer"
             >
               Watch History
+            </button>
+            <span>•</span>
+            <button
+              onClick={() => {
+                setSelectedArticleSlug(null);
+                setCurrentTab('articles');
+                updateUrl('articles');
+              }}
+              className="hover:text-sky-400 transition cursor-pointer"
+            >
+              Cinema Guides
+            </button>
+            <span>•</span>
+            <button
+              onClick={() => {
+                setCurrentTab('sitemap');
+                updateUrl('sitemap');
+              }}
+              className="hover:text-emerald-400 font-medium transition cursor-pointer flex items-center gap-1.5"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              Sitemap Index
             </button>
             <span>•</span>
             <span className="text-emerald-400 font-semibold">7 High-Speed Mirrors Online</span>

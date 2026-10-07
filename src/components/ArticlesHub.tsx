@@ -26,9 +26,12 @@ import {
   ExternalLink,
   Volume2,
   Building2,
+  Eye,
+  Users,
 } from 'lucide-react';
 import { SEO_ARTICLES, SEOArticle, SimilarTitleItem } from '../data/seoArticles';
 import { pseoEngine } from '../services/pseoEngine';
+import { articleViewsTracker } from '../services/articleViewsTracker';
 import { fetchDetails, fetchCredits, fetchSimilar, getPosterUrl } from '../services/tmdb';
 
 interface ArticlesHubProps {
@@ -60,14 +63,32 @@ export const ArticlesHub: React.FC<ArticlesHubProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [copied, setCopied] = useState<boolean>(false);
   const [liveSimilar, setLiveSimilar] = useState<SimilarTitleItem[]>([]);
+  const [, setViewsTick] = useState<number>(0);
 
   // Sync with dynamic pSEO articles
   useEffect(() => {
     const unsub = pseoEngine.subscribe(() => {
       setArticlesList(pseoEngine.getAllArticles());
     });
-    return unsub;
+    const unsubViews = articleViewsTracker.subscribe(() => {
+      setViewsTick((v) => v + 1);
+    });
+    return () => {
+      unsub();
+      unsubViews();
+    };
   }, []);
+
+  // Record article view and reader presence whenever an article is opened
+  useEffect(() => {
+    if (selectedArticle) {
+      articleViewsTracker.recordView(
+        selectedArticle.slug,
+        selectedArticle.title,
+        selectedArticle.category
+      );
+    }
+  }, [selectedArticle]);
 
   useEffect(() => {
     if (initialSlug) {
@@ -533,6 +554,16 @@ export const ArticlesHub: React.FC<ArticlesHubProps> = ({
               <span className="flex items-center gap-1">
                 <Clock className="w-3.5 h-3.5 text-zinc-500" />
                 <span>{selectedArticle.readTime}</span>
+              </span>
+              <span>•</span>
+              <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-sky-950/70 border border-sky-500/40 text-cyan-300 font-bold">
+                <Eye className="w-3.5 h-3.5 text-sky-400" />
+                <span>{articleViewsTracker.getStats(selectedArticle.slug).totalViews.toLocaleString()} Total Views</span>
+              </span>
+              <span>•</span>
+              <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-950/70 border border-emerald-500/40 text-emerald-300 font-bold">
+                <Users className="w-3.5 h-3.5 text-emerald-400" />
+                <span>{articleViewsTracker.getStats(selectedArticle.slug).uniqueReaders.toLocaleString()} Readers</span>
               </span>
             </div>
 
@@ -1326,6 +1357,11 @@ export const ArticlesHub: React.FC<ArticlesHubProps> = ({
                       <span>{art.publishedDate}</span>
                       <span>•</span>
                       <span>{art.readTime}</span>
+                      <span>•</span>
+                      <span className="text-cyan-400 font-bold flex items-center gap-1">
+                        <Eye className="w-3 h-3 text-sky-400" />
+                        <span>{articleViewsTracker.getStats(art.slug).totalViews.toLocaleString()} views</span>
+                      </span>
                     </div>
 
                     <h2

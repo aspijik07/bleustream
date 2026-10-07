@@ -6,8 +6,8 @@ import { LanguageSelector } from './LanguageSelector';
 import { useLanguage } from '../context/LanguageContext';
 
 interface NavbarProps {
-  currentTab: 'home' | 'movies' | 'tv' | 'anime' | 'trending' | 'watchlist' | 'history' | 'search' | 'articles';
-  onSelectTab: (tab: 'home' | 'movies' | 'tv' | 'anime' | 'trending' | 'watchlist' | 'history' | 'search' | 'articles') => void;
+  currentTab: 'home' | 'movies' | 'tv' | 'anime' | 'trending' | 'watchlist' | 'history' | 'search' | 'articles' | 'sitemap';
+  onSelectTab: (tab: 'home' | 'movies' | 'tv' | 'anime' | 'trending' | 'watchlist' | 'history' | 'search' | 'articles' | 'sitemap') => void;
   onOpenMedia: (item: MediaItem) => void;
   onSearchSubmit?: (query: string) => void;
   onOpenSettings?: () => void;
