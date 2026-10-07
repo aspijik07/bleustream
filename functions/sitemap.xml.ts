@@ -2,7 +2,7 @@
 // Serves up-to-date XML Sitemap directly to Googlebot, Bingbot, Yandex & DuckDuckGo
 
 export async function onRequestGet(context: any): Promise<Response> {
-  const host = context.request.headers.get('host') || 'bleustream.pages.dev';
+  const host = context.request.headers.get('host') || 'bleustream.live';
   const protocol = host.includes('localhost') ? 'http' : 'https';
   const domain = `${protocol}://${host}`;
   const today = new Date().toISOString().split('T')[0];

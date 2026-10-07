@@ -179,8 +179,8 @@ export default function App() {
     const twDesc = document.querySelector('meta[name="twitter:description"]');
     if (twDesc) twDesc.setAttribute('content', tabSeo.desc);
 
-    // Dynamic Canonical URL update
-    const canonicalBase = 'https://bleustream.pages.dev';
+    // Dynamic Canonical URL & OG URL update for bleustream.live
+    const canonicalBase = 'https://bleustream.live';
     const canonicalPath = currentTab === 'home' ? '/' : `/?tab=${currentTab}`;
     let canonicalTag = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
     if (!canonicalTag) {
@@ -189,6 +189,9 @@ export default function App() {
       document.head.appendChild(canonicalTag);
     }
     canonicalTag.href = `${canonicalBase}${canonicalPath}`;
+
+    const ogUrl = document.querySelector('meta[property="og:url"]');
+    if (ogUrl) ogUrl.setAttribute('content', `${canonicalBase}${canonicalPath}`);
   }, [currentTab, activeMedia]);
 
   // CPA 15-second timer reference

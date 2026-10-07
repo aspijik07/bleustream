@@ -8,7 +8,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const DOMAIN = 'https://bleustream.pages.dev';
+const DOMAIN = 'https://bleustream.live';
 const today = new Date().toISOString().split('T')[0];
 
 const seoArticlesPath = path.resolve(__dirname, '../src/data/seoArticles.ts');

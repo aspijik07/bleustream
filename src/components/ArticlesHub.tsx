@@ -151,8 +151,8 @@ export const ArticlesHub: React.FC<ArticlesHubProps> = ({
 
     if (!selectedArticle) {
       document.title =
-        'Cinema Guides & Streaming Articles – Watch Movies Free in HD | BleuStream';
-      const hubCanonical = 'https://bleustream.pages.dev/?tab=articles';
+        'Cinema Guides & Streaming Articles – Watch Movies Free in HD | BleuStream Live';
+      const hubCanonical = 'https://bleustream.live/?tab=articles';
       let canonicalTag = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
       if (!canonicalTag) {
         canonicalTag = document.createElement('link');
@@ -161,10 +161,10 @@ export const ArticlesHub: React.FC<ArticlesHubProps> = ({
       }
       canonicalTag.href = hubCanonical;
 
-      setMeta('og:title', 'Cinema Guides & Streaming Articles | BleuStream', true);
+      setMeta('og:title', 'Cinema Guides & Streaming Articles | BleuStream Live', true);
       setMeta(
         'og:description',
-        'Explore verified cinema guides, chronological watch orders, and streaming reviews for trending movies and anime.',
+        'Explore verified cinema guides, chronological watch orders, and streaming reviews for trending movies and anime on bleustream.live.',
         true
       );
       setMeta('og:url', hubCanonical, true);
@@ -176,7 +176,7 @@ export const ArticlesHub: React.FC<ArticlesHubProps> = ({
     if (metaDesc) metaDesc.setAttribute('content', selectedArticle.metaDescription);
 
     // Dynamic Canonical Tag
-    const canonicalHref = `https://bleustream.pages.dev/?tab=articles&article=${selectedArticle.slug}`;
+    const canonicalHref = `https://bleustream.live/?tab=articles&article=${selectedArticle.slug}`;
     let canonicalTag = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
     if (!canonicalTag) {
       canonicalTag = document.createElement('link');
@@ -270,8 +270,8 @@ export const ArticlesHub: React.FC<ArticlesHubProps> = ({
           },
           publisher: {
             '@type': 'Organization',
-            name: 'BleuStream HD Cinema',
-            url: 'https://bleustream.pages.dev',
+            name: 'BleuStream Live Cinema',
+            url: 'https://bleustream.live',
           },
           description: selectedArticle.excerpt,
         },
@@ -303,19 +303,19 @@ export const ArticlesHub: React.FC<ArticlesHubProps> = ({
               '@type': 'ListItem',
               position: 1,
               name: 'Home',
-              item: 'https://bleustream.pages.dev/',
+              item: 'https://bleustream.live/',
             },
             {
               '@type': 'ListItem',
               position: 2,
               name: 'Cinema Guides',
-              item: 'https://bleustream.pages.dev/?tab=articles',
+              item: 'https://bleustream.live/?tab=articles',
             },
             {
               '@type': 'ListItem',
               position: 3,
               name: selectedArticle.category,
-              item: `https://bleustream.pages.dev/?tab=articles&category=${encodeURIComponent(
+              item: `https://bleustream.live/?tab=articles&category=${encodeURIComponent(
                 selectedArticle.category
               )}`,
             },
@@ -413,7 +413,7 @@ export const ArticlesHub: React.FC<ArticlesHubProps> = ({
   }, [selectedArticle, liveSimilar, articlesList]);
 
   const handleShare = (art: SEOArticle) => {
-    const url = `https://bleustream.pages.dev/?tab=articles&article=${encodeURIComponent(
+    const url = `https://bleustream.live/?tab=articles&article=${encodeURIComponent(
       art.slug
     )}`;
     if (navigator.clipboard) {

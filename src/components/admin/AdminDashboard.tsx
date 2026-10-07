@@ -2293,7 +2293,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
                   </button>
 
                   <a
-                    href="https://bleustream.pages.dev/sitemap.xml"
+                    href="https://bleustream.live/sitemap.xml"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="px-3.5 py-2.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 hover:border-zinc-600 text-sky-400 hover:text-sky-300 text-xs font-bold rounded-xl flex items-center gap-2 transition cursor-pointer"
@@ -2404,7 +2404,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
               {pseoArticles.length > 0 && (
                 <div className="p-4 bg-zinc-950/80 border border-zinc-800/70 rounded-xl space-y-2 max-w-3xl font-sans">
                   <div className="text-xs text-emerald-400 flex items-center gap-1.5">
-                    <span>https://bleustream.pages.dev › articles › {pseoArticles[0].slug}</span>
+                    <span>https://bleustream.live › articles › {pseoArticles[0].slug}</span>
                   </div>
                   <h4 className="text-base sm:text-lg font-medium text-[#8ab4f8] hover:underline cursor-pointer">
                     {pseoArticles[0].metaTitle}

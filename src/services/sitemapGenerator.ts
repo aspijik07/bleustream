@@ -4,7 +4,7 @@
 
 import { SEOArticle, SEO_ARTICLES } from '../data/seoArticles';
 
-export const DEFAULT_SITE_DOMAIN = 'https://bleustream.pages.dev';
+export const DEFAULT_SITE_DOMAIN = 'https://bleustream.live';
 
 export interface SitemapUrlEntry {
   loc: string;

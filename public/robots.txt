@@ -11,5 +11,7 @@ Allow: /
 User-agent: DuckDuckBot
 Allow: /
 
-# Full PSEO XML Sitemap Index
-Sitemap: https://bleustream.pages.dev/sitemap.xml
+# Canonical Host & Full PSEO XML Sitemap Index for bleustream.live
+Host: bleustream.live
+Sitemap: https://bleustream.live/sitemap.xml
+Sitemap: https://bleustream.live/sitemap.html

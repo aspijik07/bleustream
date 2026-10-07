@@ -54,7 +54,7 @@ export const SitemapViewer: React.FC<SitemapViewerProps> = ({
     return unsub;
   }, []);
 
-  const domain = 'https://bleustream.pages.dev';
+  const domain = 'https://bleustream.live';
   const today = new Date().toISOString().split('T')[0];
 
   // Build the complete list of URLs
