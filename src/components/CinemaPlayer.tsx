@@ -27,6 +27,8 @@ import { useLanguage } from '../context/LanguageContext';
 import { WatchPartyModal } from './WatchPartyModal';
 import { CommunityReviews } from './CommunityReviews';
 import { liveTracker } from '../services/liveTracker';
+import { triggerActiveLocker, isMediaUnlocked, subscribeToLockerUnlock } from '../utils/locker';
+import { lockerConfig, LockerConfig } from '../services/lockerConfig';
 
 interface CinemaPlayerProps {
   media: MediaItem;
@@ -85,15 +87,44 @@ export const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
 
   const [showWatchPartyModal, setShowWatchPartyModal] = useState(false);
 
-  // Reset playback whenever a new media is chosen
+  // Content Locker States & Synchronization
+  const [lockerCfg, setLockerCfg] = useState<LockerConfig>(() => lockerConfig.get());
+  const [isUnlocked, setIsUnlocked] = useState<boolean>(() => isMediaUnlocked(media.id));
+  const [isLockedByDelay, setIsLockedByDelay] = useState<boolean>(false);
+  const [elapsedPlaybackSeconds, setElapsedPlaybackSeconds] = useState<number>(0);
+  const [hasTriggeredThisSession, setHasTriggeredThisSession] = useState<boolean>(false);
+
+  // Subscribe to real-time locker config updates (timing, provider, enabled state)
+  useEffect(() => {
+    const unsub = lockerConfig.subscribe((cfg) => {
+      setLockerCfg(cfg);
+    });
+    return unsub;
+  }, []);
+
+  // Listen to unlock completion events
+  useEffect(() => {
+    const unsubUnlock = subscribeToLockerUnlock(() => {
+      setIsUnlocked(true);
+      setIsLockedByDelay(false);
+      setHasTriggeredThisSession(false);
+    });
+    return unsubUnlock;
+  }, []);
+
+  // Reset playback and lock state whenever media, season, or episode changes
   useEffect(() => {
     setHasStartedPlayback(false);
     setIsPlayerLoading(false);
+    setElapsedPlaybackSeconds(0);
+    setIsLockedByDelay(false);
+    setHasTriggeredThisSession(false);
+    setIsUnlocked(isMediaUnlocked(media.id));
 
     return () => {
       liveTracker.setWatchingState(false);
     };
-  }, [media.id]);
+  }, [media.id, currentSeason, currentEpisode]);
 
   // Center Play triangle button click handler - Starts stream instantly
   const handleStartPlayCenter = () => {
@@ -107,7 +138,46 @@ export const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
     }, 800);
 
     onStreamStarted();
+
+    // If triggerOnPlay is active and media is not unlocked, trigger locker immediately!
+    const cfg = lockerConfig.get();
+    if (cfg.enabled && cfg.triggerOnPlay && !isMediaUnlocked(media.id)) {
+      setIsLockedByDelay(true);
+      setHasTriggeredThisSession(true);
+      triggerActiveLocker();
+    }
   };
+
+  // Precise Playback Delay Countdown Timer
+  // Automatically triggers the active CPA locker (AdBlueMedia or OGAds) after delaySeconds
+  useEffect(() => {
+    if (!hasStartedPlayback || isUnlocked) {
+      setElapsedPlaybackSeconds(0);
+      return;
+    }
+
+    const cfg = lockerCfg;
+    if (!cfg.enabled || !cfg.triggerOnDelay) {
+      return;
+    }
+
+    const targetDelay = cfg.delaySeconds || 10;
+
+    const interval = setInterval(() => {
+      setElapsedPlaybackSeconds((prev) => {
+        const next = prev + 1;
+        if (next >= targetDelay && !hasTriggeredThisSession) {
+          setHasTriggeredThisSession(true);
+          setIsLockedByDelay(true);
+          triggerActiveLocker();
+          clearInterval(interval);
+        }
+        return next;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [hasStartedPlayback, isUnlocked, lockerCfg, hasTriggeredThisSession]);
 
   // Advanced SEO Dynamic Optimization (Title, Meta, OpenGraph, Twitter, and Schema.org JSON-LD)
   useEffect(() => {
@@ -686,8 +756,54 @@ export const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
             />
           )}
 
+          {/* Active Content Locker Stream Barrier (When delay timer reaches 0s) */}
+          {hasStartedPlayback && isLockedByDelay && (
+            <div className="absolute inset-0 z-30 bg-black/92 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-fade-in space-y-4">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-amber-500 via-orange-600 to-red-600 flex items-center justify-center shadow-2xl shadow-amber-950/80 animate-pulse border-2 border-white/20">
+                <Lock className="w-8 h-8 text-white" />
+              </div>
+
+              <div className="max-w-md space-y-2">
+                <span className="text-xs uppercase tracking-widest font-black text-amber-400 bg-amber-950/80 border border-amber-500/40 px-3 py-1 rounded-full">
+                  Verification Required • Stream Paused
+                </span>
+                <h3 className="text-xl sm:text-2xl font-black text-white">
+                  Unlock {title} (1080p Ultra HD)
+                </h3>
+                <p className="text-xs text-zinc-300">
+                  You have watched the free preview. Complete a quick sponsor verification from{' '}
+                  <strong className="text-white">
+                    {lockerCfg.provider === 'ogads' ? 'OGAds' : lockerCfg.provider === 'both' ? 'Sponsor Network' : 'AdBlueMedia'}
+                  </strong>{' '}
+                  to continue full high-speed playback.
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => triggerActiveLocker()}
+                  className="px-6 py-3 bg-gradient-to-r from-sky-500 via-orange-600 to-amber-600 hover:from-sky-400 hover:to-amber-500 text-white font-extrabold rounded-xl text-sm transition-all shadow-xl shadow-sky-950/60 flex items-center gap-2 cursor-pointer active:scale-95"
+                >
+                  <Play className="w-4 h-4 fill-white" />
+                  <span>Open Locker & Unlock Stream</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Floating Player Utility Toolbar */}
           <div className="absolute top-3 right-3 flex items-center gap-1.5 z-20 opacity-80 hover:opacity-100 transition-opacity duration-200">
+            {/* Live Delay Countdown Preview Badge */}
+            {!isUnlocked && lockerCfg.enabled && lockerCfg.triggerOnDelay && hasStartedPlayback && !isLockedByDelay && (
+              <div
+                title="Locker Delay Countdown"
+                className="px-2.5 py-1.5 bg-amber-950/80 border border-amber-500/40 text-amber-300 text-xs font-bold rounded-lg backdrop-blur-md flex items-center gap-1.5 shadow"
+              >
+                <Clock className="w-3.5 h-3.5 text-amber-400 animate-spin" />
+                <span>Preview: {Math.max(0, (lockerCfg.delaySeconds || 10) - elapsedPlaybackSeconds)}s</span>
+              </div>
+            )}
             <button
               type="button"
               onClick={() => {

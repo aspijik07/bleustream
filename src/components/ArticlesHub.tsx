@@ -863,7 +863,7 @@ export const ArticlesHub: React.FC<ArticlesHubProps> = ({
                 </h3>
               </div>
               <p className="text-xs text-zinc-400">
-                All {allArticles.length} cinema guides dynamically registered for Googlebot, Bingbot & DuckDuckGo crawler indexing.
+                All {articlesList.length} cinema guides dynamically registered for Googlebot, Bingbot & DuckDuckGo crawler indexing.
               </p>
             </div>
 
@@ -882,7 +882,7 @@ export const ArticlesHub: React.FC<ArticlesHubProps> = ({
 
           {/* Complete HTML Links Grid for Ultra-Fast Crawling */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {allArticles.map((art, idx) => (
+            {articlesList.map((art, idx) => (
               <a
                 key={art.id}
                 href={`/?tab=articles&article=${art.slug}`}

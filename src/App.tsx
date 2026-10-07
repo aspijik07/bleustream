@@ -40,6 +40,7 @@ import { TrailerModal } from './components/TrailerModal';
 import { SettingsModal } from './components/SettingsModal';
 import { AdminLoginModal } from './components/admin/AdminLoginModal';
 import { AdminDashboard } from './components/admin/AdminDashboard';
+import { LockerModal } from './components/LockerModal';
 import { ArticlesHub } from './components/ArticlesHub';
 import { adminAuth } from './services/adminAuth';
 import { liveTracker } from './services/liveTracker';
@@ -1498,6 +1499,9 @@ export default function App() {
         isOpen={isAdminDashboardOpen}
         onClose={() => setIsAdminDashboardOpen(false)}
       />
+
+      {/* Universal Content Locker Modal (AdBlueMedia & OGAds) */}
+      <LockerModal mediaId={activeMedia?.id} />
     </div>
   );
 }

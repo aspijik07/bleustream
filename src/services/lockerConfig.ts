@@ -26,7 +26,7 @@ export interface LockerConfig {
   adBlueMedia: AdBlueMediaConfig;
 }
 
-const STORAGE_KEY = 'bleustream_locker_config_v1';
+const STORAGE_KEY = 'bleustream_locker_config_v2';
 
 export const DEFAULT_ADBLUEMEDIA_CONFIG: AdBlueMediaConfig = {
   it: 4192251,
@@ -37,13 +37,13 @@ export const DEFAULT_ADBLUEMEDIA_CONFIG: AdBlueMediaConfig = {
 };
 
 const DEFAULT_CONFIG: LockerConfig = {
-  enabled: false,
+  enabled: true,
   provider: 'adbluemedia',
-  delaySeconds: 15,
+  delaySeconds: 10,
   triggerOnPlay: false,
-  triggerOnDelay: false,
+  triggerOnDelay: true,
   triggerMode: 'every_stream',
-  lockerId: '',
+  lockerId: '4o7vvr',
   adBlueMedia: DEFAULT_ADBLUEMEDIA_CONFIG,
 };
 
@@ -92,7 +92,27 @@ class LockerConfigService {
 
   private loadConfig(): LockerConfig {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      let saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) {
+        // If v1 exists, auto-migrate ensuring enabled: true
+        const v1 = localStorage.getItem('bleustream_locker_config_v1');
+        if (v1) {
+          try {
+            const parsedV1 = JSON.parse(v1);
+            const migrated: LockerConfig = {
+              ...DEFAULT_CONFIG,
+              ...parsedV1,
+              enabled: true,
+              delaySeconds: typeof parsedV1.delaySeconds === 'number' ? parsedV1.delaySeconds : 10,
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+            return migrated;
+          } catch {
+            // ignore
+          }
+        }
+      }
+
       if (saved) {
         const parsed = JSON.parse(saved);
         const resolvedId = (parsed.lockerId && parsed.lockerId.trim()) 
@@ -104,9 +124,11 @@ class LockerConfigService {
         return {
           ...DEFAULT_CONFIG,
           ...parsed,
-          enabled: false, // Strict: lockers permanently disabled per user instruction
+          enabled: typeof parsed.enabled === 'boolean' ? parsed.enabled : true,
           provider: validProvider,
           lockerId: resolvedId,
+          triggerOnDelay: typeof parsed.triggerOnDelay === 'boolean' ? parsed.triggerOnDelay : true,
+          triggerOnPlay: typeof parsed.triggerOnPlay === 'boolean' ? parsed.triggerOnPlay : false,
           adBlueMedia: {
             ...DEFAULT_ADBLUEMEDIA_CONFIG,
             ...(parsed.adBlueMedia || {}),

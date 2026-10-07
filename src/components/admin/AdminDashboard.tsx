@@ -80,7 +80,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
       setPseoArticles(pseoEngine.getAllArticles());
       setPseoStats(pseoEngine.getStats());
     });
-    return unsub;
+    const unsubLocker = lockerConfig.subscribe((cfg) => {
+      setLockerSettings(cfg);
+    });
+    return () => {
+      unsub();
+      unsubLocker();
+    };
   }, []);
 
   const handleGenerateDailyArticles = async () => {
@@ -1436,7 +1442,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
                   value={lockerSettings.delaySeconds}
                   onChange={(e) => {
                     const val = parseInt(e.target.value, 10);
-                    setLockerSettings((prev) => ({ ...prev, delaySeconds: val }));
+                    const next = { ...lockerSettings, delaySeconds: val, enabled: true };
+                    setLockerSettings(next);
+                    lockerConfig.updateConfig(next);
                   }}
                   className="w-full accent-amber-500 h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer"
                 />
@@ -1459,7 +1467,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
                           key={preset.s}
                           type="button"
                           onClick={() => {
-                            setLockerSettings((prev) => ({ ...prev, delaySeconds: preset.s }));
+                            const next = { ...lockerSettings, delaySeconds: preset.s, enabled: true };
+                            setLockerSettings(next);
+                            lockerConfig.updateConfig(next);
                           }}
                           className={`p-3 rounded-xl border text-center transition-all duration-150 cursor-pointer text-xs select-none ${
                             active
@@ -1523,7 +1533,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
                         key={p.id}
                         type="button"
                         onClick={() => {
-                          const next = { ...lockerSettings, provider: p.id as LockerProvider };
+                          const next = { ...lockerSettings, provider: p.id as LockerProvider, enabled: true };
                           setLockerSettings(next);
                           lockerConfig.updateConfig(next);
                         }}
