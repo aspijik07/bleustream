@@ -59,8 +59,10 @@ export function generateSitemapXml(articles: SEOArticle[] = [], customDomain?: s
           .replace(/>/g, '&gt;');
         imageXml = `\n    <image:image>\n      <image:loc>${cleanImg}</image:loc>\n      <image:title>${cleanTitle}</image:title>\n    </image:image>`;
       }
+      const separator = entry.loc.includes('?') ? '&amp;' : '?';
+      const hreflangXml = `\n    <xhtml:link rel="alternate" hreflang="en" href="${entry.loc}" />\n    <xhtml:link rel="alternate" hreflang="fr" href="${entry.loc}${separator}lang=fr" />\n    <xhtml:link rel="alternate" hreflang="es" href="${entry.loc}${separator}lang=es" />\n    <xhtml:link rel="alternate" hreflang="ar" href="${entry.loc}${separator}lang=ar" />\n    <xhtml:link rel="alternate" hreflang="x-default" href="${entry.loc}" />`;
       return `  <url>
-    <loc>${entry.loc}</loc>
+    <loc>${entry.loc}</loc>${hreflangXml}
     <lastmod>${entry.lastmod}</lastmod>
     <changefreq>${entry.changefreq}</changefreq>
     <priority>${entry.priority}</priority>${imageXml}

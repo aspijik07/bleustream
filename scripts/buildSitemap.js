@@ -57,7 +57,21 @@ const articleUrls = articles.map((art) => ({
   imageTitle: art.title,
 }));
 
-const allEntries = [...staticUrls, ...articleUrls];
+const topMediaUrls = [
+  { loc: `${DOMAIN}/?watch=693134`, lastmod: today, changefreq: 'daily', priority: '0.9', imageTitle: 'Watch Dune: Part Two 4K Stream' },
+  { loc: `${DOMAIN}/?watch=157336`, lastmod: today, changefreq: 'daily', priority: '0.9', imageTitle: 'Watch Interstellar 4K Stream' },
+  { loc: `${DOMAIN}/?watch=27205`, lastmod: today, changefreq: 'daily', priority: '0.9', imageTitle: 'Watch Inception 4K Stream' },
+  { loc: `${DOMAIN}/?watch=872585`, lastmod: today, changefreq: 'daily', priority: '0.9', imageTitle: 'Watch Oppenheimer 4K Stream' },
+  { loc: `${DOMAIN}/?watch=533535`, lastmod: today, changefreq: 'daily', priority: '0.9', imageTitle: 'Watch Deadpool & Wolverine Stream' },
+  { loc: `${DOMAIN}/?watch=66732&amp;season=1&amp;episode=1`, lastmod: today, changefreq: 'daily', priority: '0.9', imageTitle: 'Watch Stranger Things Stream' },
+  { loc: `${DOMAIN}/?watch=127532&amp;season=1&amp;episode=1`, lastmod: today, changefreq: 'daily', priority: '0.9', imageTitle: 'Watch Solo Leveling Anime Stream' },
+  { loc: `${DOMAIN}/?watch=85937&amp;season=1&amp;episode=1`, lastmod: today, changefreq: 'daily', priority: '0.9', imageTitle: 'Watch Demon Slayer Anime Stream' },
+  { loc: `${DOMAIN}/?watch=37854&amp;season=1&amp;episode=1`, lastmod: today, changefreq: 'daily', priority: '0.9', imageTitle: 'Watch One Piece Anime Stream' },
+  { loc: `${DOMAIN}/?watch=1399&amp;season=1&amp;episode=1`, lastmod: today, changefreq: 'daily', priority: '0.9', imageTitle: 'Watch Game of Thrones Stream' },
+  { loc: `${DOMAIN}/?watch=1396&amp;season=1&amp;episode=1`, lastmod: today, changefreq: 'daily', priority: '0.9', imageTitle: 'Watch Breaking Bad Stream' },
+];
+
+const allEntries = [...staticUrls, ...articleUrls, ...topMediaUrls];
 
 const xmlEntries = allEntries
   .map((entry) => {
@@ -70,8 +84,11 @@ const xmlEntries = allEntries
         .replace(/>/g, '&gt;');
       imageXml = `\n    <image:image>\n      <image:loc>${cleanImg}</image:loc>\n      <image:title>${cleanTitle}</image:title>\n    </image:image>`;
     }
+    const separator = entry.loc.includes('?') ? '&amp;' : '?';
+    const hreflangXml = `\n    <xhtml:link rel="alternate" hreflang="en" href="${entry.loc}" />\n    <xhtml:link rel="alternate" hreflang="fr" href="${entry.loc}${separator}lang=fr" />\n    <xhtml:link rel="alternate" hreflang="es" href="${entry.loc}${separator}lang=es" />\n    <xhtml:link rel="alternate" hreflang="ar" href="${entry.loc}${separator}lang=ar" />\n    <xhtml:link rel="alternate" hreflang="x-default" href="${entry.loc}" />`;
+
     return `  <url>
-    <loc>${entry.loc}</loc>
+    <loc>${entry.loc}</loc>${hreflangXml}
     <lastmod>${entry.lastmod}</lastmod>
     <changefreq>${entry.changefreq}</changefreq>
     <priority>${entry.priority}</priority>${imageXml}

@@ -390,6 +390,117 @@ export default function App() {
     });
   };
 
+  // Centralized Dynamic HTML5 URL Router for Direct Deep Linking, Crawling & Back/Forward Support
+  const updateUrl = (
+    tab: 'home' | 'movies' | 'tv' | 'anime' | 'trending' | 'watchlist' | 'history' | 'search' | 'articles',
+    params?: {
+      articleSlug?: string | null;
+      watchId?: number | null;
+      season?: number;
+      episode?: number;
+      query?: string;
+      replace?: boolean;
+    }
+  ) => {
+    let url = '/';
+    if (params?.watchId) {
+      url = `/?watch=${params.watchId}`;
+      if (params.season || params.episode) {
+        url += `&season=${params.season || 1}&episode=${params.episode || 1}`;
+      }
+    } else if (tab === 'articles') {
+      if (params?.articleSlug) {
+        url = `/?tab=articles&article=${encodeURIComponent(params.articleSlug)}`;
+      } else {
+        url = '/?tab=articles';
+      }
+    } else if (tab === 'search') {
+      const q = params?.query !== undefined ? params.query : searchQuery;
+      url = q ? `/?tab=search&q=${encodeURIComponent(q)}` : '/?tab=search';
+    } else if (tab !== 'home') {
+      url = `/?tab=${tab}`;
+    }
+
+    const currentFull = window.location.pathname + window.location.search;
+    if (currentFull !== url) {
+      if (params?.replace) {
+        window.history.replaceState({ tab, ...params }, '', url);
+      } else {
+        window.history.pushState({ tab, ...params }, '', url);
+      }
+    }
+  };
+
+  // HTML5 History popstate listener for seamless browser Back/Forward navigation
+  useEffect(() => {
+    const handlePopState = async () => {
+      const params = new URLSearchParams(window.location.search);
+      const watchParam = params.get('watch');
+      const tabParam = params.get('tab') as any;
+      const articleParam = params.get('article');
+      const searchParam = params.get('search') || params.get('q');
+
+      if (watchParam) {
+        const id = parseInt(watchParam, 10);
+        const s = parseInt(params.get('season') || '1', 10);
+        const e = parseInt(params.get('episode') || '1', 10);
+        if (!isNaN(id)) {
+          if (!activeMedia || activeMedia.id !== id) {
+            try {
+              const m = await fetchDetails('movie', id);
+              if (m && m.id) {
+                setActiveMedia(m);
+                setPlayerSeason(s);
+                setPlayerEpisode(e);
+              } else {
+                const tv = await fetchTVDetails(id);
+                if (tv && tv.id) {
+                  setActiveMedia(tv);
+                  setPlayerSeason(s);
+                  setPlayerEpisode(e);
+                }
+              }
+            } catch {
+              const tv = await fetchTVDetails(id);
+              if (tv && tv.id) {
+                setActiveMedia(tv);
+                setPlayerSeason(s);
+                setPlayerEpisode(e);
+              }
+            }
+          }
+        }
+        return;
+      }
+
+      // If no watch parameter in URL, close video player
+      if (activeMedia) {
+        setActiveMedia(null);
+        liveTracker.setWatchingState(false);
+      }
+
+      if (articleParam) {
+        setSelectedArticleSlug(articleParam);
+        setCurrentTab('articles');
+      } else if (tabParam && ['home', 'movies', 'tv', 'anime', 'trending', 'watchlist', 'history', 'articles'].includes(tabParam)) {
+        setCurrentTab(tabParam);
+        if (tabParam === 'articles') {
+          setSelectedArticleSlug(null);
+        }
+      } else if (searchParam) {
+        setSearchQuery(searchParam);
+        setCurrentTab('search');
+        handleExecuteSearch(searchParam);
+      } else {
+        setCurrentTab('home');
+        setSelectedArticleSlug(null);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [activeMedia]);
+
   // Start Streaming handler
   const handlePlayMedia = (item: MediaItem, season = 1, episode = 1) => {
     setActiveMedia(item);
@@ -402,6 +513,11 @@ export default function App() {
     liveTracker.setWatchingState(true, title);
     // Instant live radar registration upon selecting the film
     liveTracker.recordStreamStart(item, season, episode, 'Server 1: VIP Ultra HD');
+    updateUrl(currentTab, {
+      watchId: item.id,
+      season: item.media_type === 'tv' ? season : undefined,
+      episode: item.media_type === 'tv' ? episode : undefined,
+    });
   };
 
   const handlePlayMediaById = async (mediaId: number, type: 'movie' | 'tv', title: string) => {
@@ -450,6 +566,7 @@ export default function App() {
     setCurrentTab('search');
     setActiveMedia(null);
     setIsSearching(true);
+    updateUrl('search', { query: cleanQuery });
     window.scrollTo({ top: 0, behavior: 'smooth' });
     try {
       const results = await searchCatalog(cleanQuery);
@@ -473,11 +590,15 @@ export default function App() {
         currentTab={currentTab}
         onSelectTab={(tab) => {
           setCurrentTab(tab);
-          liveTracker.recordPageView(tab === 'home' ? '/' : `/${tab}`);
+          if (tab === 'articles') {
+            setSelectedArticleSlug(null);
+          }
           if (activeMedia) {
             setActiveMedia(null);
             liveTracker.setWatchingState(false);
           }
+          updateUrl(tab, { articleSlug: null });
+          liveTracker.recordPageView(tab === 'home' ? '/' : `/${tab}`);
         }}
         onOpenMedia={(item) => {
           handlePlayMedia(item);
@@ -495,13 +616,19 @@ export default function App() {
             media={activeMedia}
             initialSeason={playerSeason}
             initialEpisode={playerEpisode}
-            onBack={() => setActiveMedia(null)}
+            onBack={() => {
+              setActiveMedia(null);
+              liveTracker.setWatchingState(false);
+              updateUrl(currentTab, { articleSlug: selectedArticleSlug });
+            }}
             onSelectSimilar={(item) => handlePlayMedia(item)}
             onStreamStarted={handleStreamStarted}
             onOpenGuide={(slug) => {
               setSelectedArticleSlug(slug);
               setCurrentTab('articles');
               setActiveMedia(null);
+              liveTracker.setWatchingState(false);
+              updateUrl('articles', { articleSlug: slug });
             }}
           />
         ) : (
@@ -1351,8 +1478,16 @@ export default function App() {
             {currentTab === 'articles' && (
               <ArticlesHub
                 initialSlug={selectedArticleSlug}
+                onSelectArticle={(slug) => {
+                  setSelectedArticleSlug(slug);
+                  updateUrl('articles', { articleSlug: slug });
+                }}
                 onPlayMediaById={handlePlayMediaById}
-                onBackToHome={() => setCurrentTab('home')}
+                onBackToHome={() => {
+                  setCurrentTab('home');
+                  setSelectedArticleSlug(null);
+                  updateUrl('home');
+                }}
               />
             )}
           </>
@@ -1479,6 +1614,7 @@ export default function App() {
             setSelectedArticleSlug(slug);
             setCurrentTab('articles');
             setDetailMedia(null);
+            updateUrl('articles', { articleSlug: slug });
           }}
         />
       )}

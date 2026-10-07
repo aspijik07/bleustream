@@ -7,6 +7,8 @@ import {
   fetchPopular,
   fetchTopRated,
   fetchAnime,
+  fetchDetails,
+  fetchTVDetails,
   getPosterUrl,
   getBackdropUrl,
 } from './tmdb';
@@ -394,6 +396,73 @@ class PSEOEngineService {
 
   public getArticleByMediaId(mediaId: number): SEOArticle | undefined {
     return this.getAllArticles().find((a) => a.relatedMediaId === mediaId);
+  }
+
+  public getOrCreateArticleForMedia(
+    media: MediaItem,
+    category?: 'Movie Guides' | 'TV Series Guides' | 'Anime Guides'
+  ): SEOArticle {
+    const all = this.getAllArticles();
+    const existing = all.find(
+      (a) =>
+        (media.id && a.relatedMediaId === media.id) ||
+        (media.title && a.relatedMediaTitle.toLowerCase() === media.title.toLowerCase()) ||
+        (media.name && a.relatedMediaTitle.toLowerCase() === media.name.toLowerCase())
+    );
+    if (existing) return existing;
+
+    const cat: 'Movie Guides' | 'TV Series Guides' | 'Anime Guides' =
+      category ||
+      (media.genre_ids?.includes(16)
+        ? 'Anime Guides'
+        : media.media_type === 'tv' || media.first_air_date
+        ? 'TV Series Guides'
+        : 'Movie Guides');
+
+    const existingSlugs = new Set(all.map((a) => a.slug));
+    const newArt = synthesizeArticleForMedia(media, cat, existingSlugs);
+    this.customArticles.unshift(newArt);
+    this.saveState();
+    return newArt;
+  }
+
+  public async getOrCreateArticleByMediaId(
+    mediaId: number,
+    mediaType: 'movie' | 'tv' = 'movie',
+    title?: string
+  ): Promise<SEOArticle> {
+    const all = this.getAllArticles();
+    const existing = all.find(
+      (a) =>
+        (mediaId && a.relatedMediaId === mediaId) ||
+        (title && a.relatedMediaTitle.toLowerCase() === title.toLowerCase())
+    );
+    if (existing) return existing;
+
+    try {
+      const details =
+        mediaType === 'tv'
+          ? await fetchTVDetails(mediaId)
+          : await fetchDetails(mediaType, mediaId);
+      if (details) {
+        return this.getOrCreateArticleForMedia(details);
+      }
+    } catch {
+      // ignore
+    }
+
+    const fallbackItem: MediaItem = {
+      id: mediaId,
+      title: title || 'Cinema Title',
+      name: title || 'Cinema Title',
+      overview: `Stream ${title || 'this title'} in pristine 1080p and 4K Ultra HD on BleuStream with 0% buffering, multi-language subtitles, and surround audio.`,
+      poster_path: '',
+      backdrop_path: '',
+      vote_average: 8.5,
+      vote_count: 1420,
+      media_type: mediaType,
+    };
+    return this.getOrCreateArticleForMedia(fallbackItem);
   }
 
   constructor() {

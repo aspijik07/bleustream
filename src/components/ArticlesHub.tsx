@@ -35,12 +35,14 @@ interface ArticlesHubProps {
   initialSlug?: string | null;
   onPlayMediaById: (mediaId: number, type: 'movie' | 'tv', title: string) => void;
   onBackToHome: () => void;
+  onSelectArticle?: (slug: string | null) => void;
 }
 
 export const ArticlesHub: React.FC<ArticlesHubProps> = ({
   initialSlug,
   onPlayMediaById,
   onBackToHome,
+  onSelectArticle,
 }) => {
   const [articlesList, setArticlesList] = useState<SEOArticle[]>(() =>
     pseoEngine.getAllArticles()
@@ -72,7 +74,14 @@ export const ArticlesHub: React.FC<ArticlesHubProps> = ({
       const found = pseoEngine.getAllArticles().find((a) => a.slug === initialSlug);
       if (found) {
         setSelectedArticle(found);
+      } else {
+        const partial = pseoEngine.getAllArticles().find(
+          (a) => a.slug.includes(initialSlug) || initialSlug.includes(a.slug)
+        );
+        if (partial) setSelectedArticle(partial);
       }
+    } else if (initialSlug === null) {
+      setSelectedArticle(null);
     }
   }, [initialSlug]);
 
@@ -154,6 +163,32 @@ export const ArticlesHub: React.FC<ArticlesHubProps> = ({
       document.head.appendChild(canonicalTag);
     }
     canonicalTag.href = canonicalHref;
+
+    // Dynamic Multi-Language hreflang link tags (EN, FR, ES, AR) for Google Global Rankings
+    const siteLangs = [
+      { code: 'en', param: '' },
+      { code: 'fr', param: '&lang=fr' },
+      { code: 'es', param: '&lang=es' },
+      { code: 'ar', param: '&lang=ar' },
+    ];
+    siteLangs.forEach(({ code, param }) => {
+      let hl = document.querySelector(`link[rel="alternate"][hreflang="${code}"]`) as HTMLLinkElement | null;
+      if (!hl) {
+        hl = document.createElement('link');
+        hl.rel = 'alternate';
+        hl.setAttribute('hreflang', code);
+        document.head.appendChild(hl);
+      }
+      hl.href = `${canonicalHref}${param}`;
+    });
+    let defHl = document.querySelector('link[rel="alternate"][hreflang="x-default"]') as HTMLLinkElement | null;
+    if (!defHl) {
+      defHl = document.createElement('link');
+      defHl.rel = 'alternate';
+      defHl.setAttribute('hreflang', 'x-default');
+      document.head.appendChild(defHl);
+    }
+    defHl.href = canonicalHref;
 
     // Dynamic Open Graph Tags
     setMeta('og:title', selectedArticle.metaTitle, true);
@@ -369,7 +404,64 @@ export const ArticlesHub: React.FC<ArticlesHubProps> = ({
 
   const handleOpenArticle = (art: SEOArticle) => {
     setSelectedArticle(art);
+    if (onSelectArticle) {
+      onSelectArticle(art.slug);
+    }
+    const targetUrl = `/?tab=articles&article=${encodeURIComponent(art.slug)}`;
+    if (window.location.search !== `?tab=articles&article=${art.slug}`) {
+      window.history.pushState({ tab: 'articles', article: art.slug }, '', targetUrl);
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleBackToHub = () => {
+    setSelectedArticle(null);
+    if (onSelectArticle) {
+      onSelectArticle(null);
+    }
+    window.history.pushState({ tab: 'articles' }, '', '/?tab=articles');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleOpenGuideForSimilar = async (sim: SimilarTitleItem) => {
+    let target = articlesList.find(
+      (a) =>
+        (sim.slug && a.slug === sim.slug) ||
+        (sim.id && a.relatedMediaId === sim.id) ||
+        (sim.title && a.relatedMediaTitle.toLowerCase() === sim.title.toLowerCase())
+    );
+
+    if (!target && sim.id) {
+      target = await pseoEngine.getOrCreateArticleByMediaId(
+        sim.id,
+        sim.mediaType || 'movie',
+        sim.title
+      );
+    }
+
+    if (target) {
+      handleOpenArticle(target);
+    }
+  };
+
+  const handleOpenGuideForStep = async (step: { slug?: string; mediaId?: number; title: string; type?: string }) => {
+    let target = step.slug
+      ? articlesList.find((a) => a.slug === step.slug)
+      : step.mediaId
+      ? articlesList.find((a) => a.relatedMediaId === step.mediaId)
+      : null;
+
+    if (!target && step.mediaId) {
+      target = await pseoEngine.getOrCreateArticleByMediaId(
+        step.mediaId,
+        step.type === 'Movie' ? 'movie' : 'tv',
+        step.title
+      );
+    }
+
+    if (target) {
+      handleOpenArticle(target);
+    }
   };
 
   // ================= DETAILED ARTICLE READER VIEW =================
@@ -381,7 +473,7 @@ export const ArticlesHub: React.FC<ArticlesHubProps> = ({
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-zinc-800/80 pb-4">
             <button
               type="button"
-              onClick={() => setSelectedArticle(null)}
+              onClick={handleBackToHub}
               className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-zinc-400 hover:text-white transition cursor-pointer group"
             >
               <ArrowLeft className="w-4 h-4 text-red-500 group-hover:-translate-x-1 transition" />
@@ -852,10 +944,10 @@ export const ArticlesHub: React.FC<ArticlesHubProps> = ({
                             <span>Stream</span>
                           </button>
                         )}
-                        {linkedArticle && linkedArticle.slug !== selectedArticle.slug && (
+                        {(!step.slug || step.slug !== selectedArticle.slug) && (
                           <button
                             type="button"
-                            onClick={() => handleOpenArticle(linkedArticle)}
+                            onClick={() => handleOpenGuideForStep(step)}
                             className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs rounded-lg transition cursor-pointer font-medium"
                           >
                             Read Guide
@@ -941,16 +1033,14 @@ export const ArticlesHub: React.FC<ArticlesHubProps> = ({
                         <Play className="w-3 h-3 fill-white" />
                         <span>Watch</span>
                       </button>
-                      {existingGuide && (
-                        <button
-                          type="button"
-                          onClick={() => handleOpenArticle(existingGuide)}
-                          className="px-2 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white text-[11px] font-medium rounded-lg transition cursor-pointer"
-                          title="Read Guide"
-                        >
-                          Guide
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleOpenGuideForSimilar(sim)}
+                        className="px-2.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white text-[11px] font-medium rounded-lg transition cursor-pointer"
+                        title={`Read Cinema Guide for ${sim.title}`}
+                      >
+                        Guide
+                      </button>
                     </div>
                   </div>
                 );
