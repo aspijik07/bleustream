@@ -10,6 +10,53 @@ export interface ArticleFAQ {
   answer: string;
 }
 
+export interface QuickSpecs {
+  runtime?: string;
+  certification?: string;
+  studio?: string;
+  audioSubStatus?: string;
+  releaseYear?: string;
+}
+
+export interface ContentWarning {
+  level: 'Family Friendly' | 'Moderate (PG-13)' | 'Mature 18+';
+  summary: string;
+  tags: string[];
+}
+
+export interface StreamingStatusBlock {
+  hdMirrorsStatus: string;
+  audioAvailable: string;
+  officialAvailability: string;
+  qualityBadge: string;
+}
+
+export interface FranchiseWatchStep {
+  step: number;
+  title: string;
+  year: string;
+  type: 'Movie' | 'TV Series' | 'Anime Arc' | 'Prequel' | 'Sequel';
+  slug?: string;
+  mediaId?: number;
+  highlight?: boolean;
+}
+
+export interface FranchiseWatchOrder {
+  franchiseName: string;
+  description: string;
+  order: FranchiseWatchStep[];
+}
+
+export interface SimilarTitleItem {
+  id: number;
+  title: string;
+  mediaType: 'movie' | 'tv';
+  posterPath?: string;
+  rating: string;
+  year: string;
+  slug?: string;
+}
+
 export interface SEOArticle {
   id: string;
   slug: string;
@@ -31,6 +78,15 @@ export interface SEOArticle {
   excerpt: string;
   sections: ArticleSection[];
   faqs: ArticleFAQ[];
+
+  // Dynamic pSEO Enrichment Layer
+  director?: string;
+  topActors?: string[];
+  specs?: QuickSpecs;
+  contentWarning?: ContentWarning;
+  streamingStatus?: StreamingStatusBlock;
+  franchiseWatchOrder?: FranchiseWatchOrder;
+  similarTitles?: SimilarTitleItem[];
 }
 
 export const SEO_ARTICLES: SEOArticle[] = [
@@ -101,6 +157,42 @@ export const SEO_ARTICLES: SEOArticle[] = [
         question: 'Do I need a paid subscription or credit card to watch on BleuStream?',
         answer: 'No. BleuStream is 100% free with no account creation, no sign-up forms, and no hidden fees required.'
       }
+    ],
+    director: 'Denis Villeneuve',
+    topActors: ['Timothée Chalamet', 'Zendaya', 'Rebecca Ferguson', 'Javier Bardem', 'Austin Butler'],
+    specs: {
+      runtime: '2h 46m',
+      certification: 'PG-13',
+      studio: 'Warner Bros. / Legendary Entertainment',
+      audioSubStatus: 'Dolby Atmos 5.1 / Multi-Sub: EN, FR, ES, AR',
+      releaseYear: '2024'
+    },
+    contentWarning: {
+      level: 'Moderate (PG-13)',
+      summary: 'Sequences of strong sci-fi violence, intense warfare, and thematic material.',
+      tags: ['Sci-Fi Warfare', 'Epic Battles', 'Mild Language', 'No Graphic Nudity']
+    },
+    streamingStatus: {
+      hdMirrorsStatus: '7 Dedicated Cloud CDN Mirrors Online & Verified',
+      audioAvailable: 'English Dolby 5.1 & French/Spanish Multi-Audio Tracks',
+      officialAvailability: 'BleuStream VIP Ultra HD: 100% Free / Zero Buffering',
+      qualityBadge: '4K Ultra HD & 1080p HDR'
+    },
+    franchiseWatchOrder: {
+      franchiseName: 'The Dune Saga (Chronological Watch Order)',
+      description: 'Frank Herbert’s desert epic adapted chronologically from Paul’s arrival on Arrakis to the galactic Holy War.',
+      order: [
+        { step: 1, title: 'Dune: Part One', year: '2021', type: 'Movie', mediaId: 438631 },
+        { step: 2, title: 'Dune: Part Two', year: '2024', type: 'Movie', mediaId: 693134, highlight: true, slug: 'how-to-watch-dune-part-two-online-free-hd' },
+        { step: 3, title: 'Dune: Prophecy', year: '2024', type: 'TV Series', mediaId: 213713 },
+        { step: 4, title: 'Dune: Messiah', year: '2026', type: 'Sequel' }
+      ]
+    },
+    similarTitles: [
+      { id: 157336, title: 'Interstellar', mediaType: 'movie', rating: '8.7/10', year: '2014', slug: 'interstellar-movie-streaming-review-cast' },
+      { id: 27205, title: 'Inception', mediaType: 'movie', rating: '8.8/10', year: '2010', slug: 'inception-movie-dream-levels-explained-stream' },
+      { id: 872585, title: 'Oppenheimer', mediaType: 'movie', rating: '8.9/10', year: '2023', slug: 'oppenheimer-movie-stream-review-cast' },
+      { id: 335984, title: 'Blade Runner 2049', mediaType: 'movie', rating: '8.0/10', year: '2017' }
     ]
   },
   {
@@ -160,6 +252,42 @@ export const SEO_ARTICLES: SEOArticle[] = [
         question: 'How long is Interstellar and what is its IMDb score?',
         answer: 'Interstellar has a runtime of 2 hours and 49 minutes (169 minutes) and boasts an 8.7/10 score on IMDb, ranking among the top 25 films of all time.'
       }
+    ],
+    director: 'Christopher Nolan',
+    topActors: ['Matthew McConaughey', 'Anne Hathaway', 'Jessica Chastain', 'Michael Caine', 'Matt Damon'],
+    specs: {
+      runtime: '2h 49m',
+      certification: 'PG-13',
+      studio: 'Paramount Pictures / Syncopy',
+      audioSubStatus: 'Dolby Atmos 5.1 / Multi-Sub: EN, FR, ES, DE, AR',
+      releaseYear: '2014'
+    },
+    contentWarning: {
+      level: 'Moderate (PG-13)',
+      summary: 'Intense cosmic peril, existential dread, emotional separation, and brief language.',
+      tags: ['Cosmic Peril', 'Emotional Separation', 'Mild Language', 'Family Friendly Sci-Fi']
+    },
+    streamingStatus: {
+      hdMirrorsStatus: '7 Dedicated Cloud CDN Mirrors Online & Verified',
+      audioAvailable: 'Lossless Hans Zimmer 5.1 Mix + Multi-Language Subtitles',
+      officialAvailability: 'BleuStream VIP Ultra HD: 100% Free / Zero Buffering',
+      qualityBadge: '4K Ultra HD & 1080p IMAX Ratio'
+    },
+    franchiseWatchOrder: {
+      franchiseName: 'Christopher Nolan Mind-Bending Sci-Fi Anthology',
+      description: 'Experience the visionary director’s greatest mind-bending blockbusters in suggested viewing order.',
+      order: [
+        { step: 1, title: 'Inception', year: '2010', type: 'Movie', mediaId: 27205, slug: 'inception-movie-dream-levels-explained-stream' },
+        { step: 2, title: 'Interstellar', year: '2014', type: 'Movie', mediaId: 157336, highlight: true, slug: 'interstellar-movie-streaming-review-cast' },
+        { step: 3, title: 'Tenet', year: '2020', type: 'Movie', mediaId: 577922 },
+        { step: 4, title: 'Oppenheimer', year: '2023', type: 'Movie', mediaId: 872585, slug: 'oppenheimer-movie-stream-review-cast' }
+      ]
+    },
+    similarTitles: [
+      { id: 693134, title: 'Dune: Part Two', mediaType: 'movie', rating: '8.6/10', year: '2024', slug: 'how-to-watch-dune-part-two-online-free-hd' },
+      { id: 27205, title: 'Inception', mediaType: 'movie', rating: '8.8/10', year: '2010', slug: 'inception-movie-dream-levels-explained-stream' },
+      { id: 286217, title: 'The Martian', mediaType: 'movie', rating: '8.0/10', year: '2015' },
+      { id: 329865, title: 'Arrival', mediaType: 'movie', rating: '7.9/10', year: '2016' }
     ]
   },
   {
@@ -219,6 +347,43 @@ export const SEO_ARTICLES: SEOArticle[] = [
         question: 'How can I stream all episodes of Stranger Things on BleuStream?',
         answer: 'Simply open the BleuStream TV Shows tab, select Stranger Things, choose your desired season and episode from the dropdown, and stream instantly.'
       }
+    ],
+    director: 'The Duffer Brothers (Matt & Ross Duffer)',
+    topActors: ['Millie Bobby Brown', 'David Harbour', 'Winona Ryder', 'Finn Wolfhard', 'Sadie Sink'],
+    specs: {
+      runtime: '50-85m per episode',
+      certification: 'TV-14',
+      studio: '21 Laps Entertainment / Netflix',
+      audioSubStatus: 'Dolby 5.1 Stereo / Multi-Sub: EN, FR, ES, AR',
+      releaseYear: '2016-2025'
+    },
+    contentWarning: {
+      level: 'Moderate (PG-13)',
+      summary: 'Supernatural horror, body horror imagery, mild language, and intense peril.',
+      tags: ['Supernatural Peril', 'Body Horror', 'Teen Adventure', '80s Nostalgia']
+    },
+    streamingStatus: {
+      hdMirrorsStatus: '7 Dedicated Cloud CDN Mirrors Online & Verified',
+      audioAvailable: 'English Original Stereo 5.1 + Multi-Subtitles',
+      officialAvailability: 'BleuStream VIP Ultra HD: 100% Free / Zero Buffering',
+      qualityBadge: '1080p Full HD & 4K HDR'
+    },
+    franchiseWatchOrder: {
+      franchiseName: 'Stranger Things Complete Chronological Seasons',
+      description: 'Follow the Hawkins mystery from Will Byers\' disappearance to the final battle for the Upside Down.',
+      order: [
+        { step: 1, title: 'Stranger Things: Season 1 (The Vanishing of Will Byers)', year: '2016', type: 'TV Series', mediaId: 66732 },
+        { step: 2, title: 'Stranger Things: Season 2 (The Mind Flayer)', year: '2017', type: 'TV Series', mediaId: 66732 },
+        { step: 3, title: 'Stranger Things: Season 3 (The Battle of Starcourt)', year: '2019', type: 'TV Series', mediaId: 66732 },
+        { step: 4, title: 'Stranger Things: Season 4 (Vecna\'s Curse)', year: '2022', type: 'TV Series', mediaId: 66732, highlight: true },
+        { step: 5, title: 'Stranger Things: Season 5 (The Final Season)', year: '2025', type: 'TV Series', mediaId: 66732 }
+      ]
+    },
+    similarTitles: [
+      { id: 119051, title: 'Wednesday', mediaType: 'tv', rating: '8.5/10', year: '2022' },
+      { id: 94605, title: 'Arcane', mediaType: 'tv', rating: '8.7/10', year: '2021', slug: 'arcane-league-of-legends-season-2-stream' },
+      { id: 1399, title: 'Game of Thrones', mediaType: 'tv', rating: '8.4/10', year: '2011', slug: 'game-of-thrones-all-seasons-watch-free-hd' },
+      { id: 70523, title: 'Dark', mediaType: 'tv', rating: '8.7/10', year: '2017' }
     ]
   },
   {
@@ -322,6 +487,41 @@ export const SEO_ARTICLES: SEOArticle[] = [
         question: 'What is the famous catchphrase of Sung Jinwoo?',
         answer: 'His world-famous command is "Arise", which extracts the shadows of defeated foes and permanently binds them to his immortal Shadow Army.'
       }
+    ],
+    director: 'Shunsuke Nakashige',
+    topActors: ['Taito Ban (Sung Jinwoo)', 'Genta Nakamura (Yoo Jinho)', 'Reina Ueda (Cha Hae-In)', 'Takehito Koyasu', 'Aleks Le (English Dub)'],
+    specs: {
+      runtime: '24m per episode',
+      certification: 'TV-MA (16+)',
+      studio: 'A-1 Pictures',
+      audioSubStatus: 'Japanese Audio / English Dub & Multi-Sub: EN, FR, ES, AR',
+      releaseYear: '2024'
+    },
+    contentWarning: {
+      level: 'Mature 18+',
+      summary: 'Stylized anime fantasy violence, blood and monster combat, intense peril.',
+      tags: ['Graphic Fantasy Combat', 'Blood & Monster Slaying', 'Dark Fantasy', 'Uncensored']
+    },
+    streamingStatus: {
+      hdMirrorsStatus: '7 Dedicated Cloud CDN Mirrors Online & Verified',
+      audioAvailable: 'Japanese Original Audio + English Sub/Dub Tracks',
+      officialAvailability: 'BleuStream Anime Ultra HD: 100% Free / Zero Buffering',
+      qualityBadge: '1080p Full HD Anime Stream'
+    },
+    franchiseWatchOrder: {
+      franchiseName: 'Solo Leveling (Ore dake Level Up na Ken) Chronological Timeline',
+      description: 'Experience the progression of the Shadow Monarch in official anime release order.',
+      order: [
+        { step: 1, title: 'Solo Leveling: Season 1 (D-Rank Dungeon to Red Gate)', year: '2024', type: 'TV Series', mediaId: 127532, highlight: true },
+        { step: 2, title: 'Solo Leveling: -ReAwakening- (Theatrical Feature)', year: '2024', type: 'Movie', mediaId: 127532 },
+        { step: 3, title: 'Solo Leveling: Season 2 (Arise from the Shadow)', year: '2025', type: 'TV Series', mediaId: 127532 }
+      ]
+    },
+    similarTitles: [
+      { id: 85937, title: 'Demon Slayer: Kimetsu no Yaiba', mediaType: 'tv', rating: '8.6/10', year: '2019', slug: 'demon-slayer-infinity-castle-movie-guide' },
+      { id: 95479, title: 'Jujutsu Kaisen', mediaType: 'tv', rating: '8.6/10', year: '2020' },
+      { id: 1429, title: 'Attack on Titan', mediaType: 'tv', rating: '9.1/10', year: '2013' },
+      { id: 94605, title: 'Arcane', mediaType: 'tv', rating: '8.7/10', year: '2021', slug: 'arcane-league-of-legends-season-2-stream' }
     ]
   },
   {
@@ -461,6 +661,44 @@ export const SEO_ARTICLES: SEOArticle[] = [
         question: 'Can I rewatch previous Demon Slayer seasons on BleuStream?',
         answer: 'Yes, all seasons including the Mugen Train Arc, Entertainment District Arc, Swordsmith Village Arc, and Hashira Training Arc are available in 1080p on BleuStream.'
       }
+    ],
+    director: 'Haruo Sotozaki',
+    topActors: ['Natsuki Hanae (Tanjiro Kamado)', 'Akari Kito (Nezuko Kamado)', 'Hiro Shimono (Zenitsu)', 'Yoshitsugu Matsuoka (Inosuke)', 'Takahiro Sakurai (Giyu Tomioka)'],
+    specs: {
+      runtime: '24m per episode / 117m movies',
+      certification: 'TV-14 (Violence)',
+      studio: 'ufotable',
+      audioSubStatus: 'Japanese Audio / English Dub & Multi-Sub: EN, FR, ES, AR',
+      releaseYear: '2019-2025'
+    },
+    contentWarning: {
+      level: 'Moderate (PG-13)',
+      summary: 'Intense fantasy swordplay, demon decapitations, emotional grief, and blood.',
+      tags: ['Sword Combat', 'Demon Decapitations', 'Sakuga Animation', 'Uncensored']
+    },
+    streamingStatus: {
+      hdMirrorsStatus: '7 Dedicated Cloud CDN Mirrors Online & Verified',
+      audioAvailable: 'Japanese Original Audio + English Dub/Sub Tracks',
+      officialAvailability: 'BleuStream Anime Ultra HD: 100% Free / Zero Buffering',
+      qualityBadge: '1080p Full HD ufotable Sakuga'
+    },
+    franchiseWatchOrder: {
+      franchiseName: 'Demon Slayer: Kimetsu no Yaiba Chronological Watch Order',
+      description: 'Experience Tanjiro’s complete journey from Mount Kumotori to the Infinity Castle.',
+      order: [
+        { step: 1, title: 'Demon Slayer: Season 1 (Unwavering Resolve Arc)', year: '2019', type: 'TV Series', mediaId: 85937 },
+        { step: 2, title: 'Demon Slayer: Mugen Train Arc (Theatrical Feature)', year: '2020', type: 'Movie', mediaId: 85937 },
+        { step: 3, title: 'Demon Slayer: Entertainment District Arc (Season 2)', year: '2021', type: 'TV Series', mediaId: 85937 },
+        { step: 4, title: 'Demon Slayer: Swordsmith Village Arc (Season 3)', year: '2023', type: 'TV Series', mediaId: 85937 },
+        { step: 5, title: 'Demon Slayer: Hashira Training Arc (Season 4)', year: '2024', type: 'TV Series', mediaId: 85937 },
+        { step: 6, title: 'Demon Slayer: Infinity Castle Movie Trilogy (Final Arc)', year: '2025', type: 'Movie', mediaId: 85937, highlight: true }
+      ]
+    },
+    similarTitles: [
+      { id: 127532, title: 'Solo Leveling', mediaType: 'tv', rating: '8.4/10', year: '2024', slug: 'solo-leveling-anime-watch-guide-season-2' },
+      { id: 95479, title: 'Jujutsu Kaisen', mediaType: 'tv', rating: '8.6/10', year: '2020' },
+      { id: 1429, title: 'Attack on Titan', mediaType: 'tv', rating: '9.1/10', year: '2013' },
+      { id: 94605, title: 'Arcane', mediaType: 'tv', rating: '8.7/10', year: '2021', slug: 'arcane-league-of-legends-season-2-stream' }
     ]
   },
   {

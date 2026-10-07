@@ -19,6 +19,7 @@ import {
   AlertCircle,
   Users,
   ExternalLink,
+  BookOpen,
 } from 'lucide-react';
 import { MediaItem, TVEpisode, CastMember, SeasonSummary } from '../types';
 import { STREAMING_SERVERS } from '../config/servers';
@@ -29,6 +30,7 @@ import { CommunityReviews } from './CommunityReviews';
 import { liveTracker } from '../services/liveTracker';
 import { triggerActiveLocker, isMediaUnlocked, subscribeToLockerUnlock } from '../utils/locker';
 import { lockerConfig, LockerConfig } from '../services/lockerConfig';
+import { pseoEngine } from '../services/pseoEngine';
 
 interface CinemaPlayerProps {
   media: MediaItem;
@@ -39,6 +41,7 @@ interface CinemaPlayerProps {
   onStreamStarted: () => void;
   isLocked?: boolean;
   onTriggerLocker?: () => void;
+  onOpenGuide?: (slug: string) => void;
 }
 
 export const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
@@ -50,9 +53,11 @@ export const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
   onStreamStarted,
   isLocked = false,
   onTriggerLocker,
+  onOpenGuide,
 }) => {
   const { t } = useLanguage();
   const isTv = media.media_type === 'tv' || !!media.first_air_date;
+  const guide = pseoEngine.getArticleByMediaId(media.id);
   const title = media.title || media.name || 'Now Streaming';
 
   const [selectedServer, setSelectedServer] = useState(STREAMING_SERVERS[0]);
@@ -409,6 +414,25 @@ export const CinemaPlayer: React.FC<CinemaPlayerProps> = ({
               <Users className="w-3.5 h-3.5" />
               <span>Watch Party</span>
             </button>
+
+            {/* In-Depth Cinema Guide Link */}
+            {guide && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (onOpenGuide) {
+                    onOpenGuide(guide.slug);
+                  } else {
+                    window.location.search = `?tab=articles&article=${encodeURIComponent(guide.slug)}`;
+                  }
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-950/80 hover:bg-red-900 border border-red-500/50 text-red-200 rounded-lg transition font-bold text-xs cursor-pointer shadow-md shadow-red-950/40"
+                title="Read In-Depth Cinema Guide & Specs"
+              >
+                <BookOpen className="w-3.5 h-3.5 text-red-400" />
+                <span className="hidden sm:inline">Cinema Guide</span>
+              </button>
+            )}
           </div>
         </div>
 

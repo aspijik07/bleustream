@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { X, Play, Plus, Check, Star, Calendar, Clock, Film, Tv, Youtube, Layers } from 'lucide-react';
+import { X, Play, Plus, Check, Star, Calendar, Clock, Film, Tv, Youtube, Layers, BookOpen, ExternalLink } from 'lucide-react';
 import { MediaItem } from '../types';
 import { fetchDetails, getBackdropUrl, getPosterUrl } from '../services/tmdb';
+import { pseoEngine } from '../services/pseoEngine';
 
 interface MediaDetailModalProps {
   media: MediaItem;
@@ -10,6 +11,7 @@ interface MediaDetailModalProps {
   onOpenTrailer: (item: MediaItem) => void;
   onToggleWatchlist: (item: MediaItem) => void;
   isInWatchlist: boolean;
+  onOpenGuide?: (slug: string) => void;
 }
 
 export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
@@ -19,9 +21,11 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
   onOpenTrailer,
   onToggleWatchlist,
   isInWatchlist,
+  onOpenGuide,
 }) => {
   const [detailed, setDetailed] = useState<MediaItem>(media);
   const isTv = media.media_type === 'tv' || !!media.first_air_date;
+  const guide = pseoEngine.getArticleByMediaId(detailed.id);
 
   useEffect(() => {
     fetchDetails(isTv ? 'tv' : 'movie', media.id).then((res) => {
@@ -99,6 +103,22 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
                 <span>Trailer</span>
               </button>
 
+              {guide && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    if (onOpenGuide) {
+                      onOpenGuide(guide.slug);
+                    }
+                  }}
+                  className="px-4 py-2.5 bg-red-950/80 hover:bg-red-900 border border-red-500/50 text-red-200 text-sm font-bold rounded-xl transition flex items-center gap-2 cursor-pointer shadow-md shadow-red-950/40 active:scale-95"
+                >
+                  <BookOpen className="w-4 h-4 text-red-400" />
+                  <span>Cinema Guide</span>
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={() => onToggleWatchlist(detailed)}
@@ -170,6 +190,21 @@ export const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
                 <span className="text-zinc-400 block text-[11px]">Mirrors:</span>
                 <span className="text-emerald-400 font-semibold">6 Live Servers Online</span>
               </div>
+              {guide && (
+                <div className="pt-2 border-t border-zinc-800">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      if (onOpenGuide) onOpenGuide(guide.slug);
+                    }}
+                    className="w-full py-2 px-2.5 rounded-lg bg-zinc-800/90 hover:bg-zinc-750 text-xs font-semibold text-red-400 hover:text-red-300 flex items-center justify-between transition cursor-pointer border border-red-500/30"
+                  >
+                    <span>Read Cinema Guide</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

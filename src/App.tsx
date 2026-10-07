@@ -173,6 +173,17 @@ export default function App() {
 
     const twDesc = document.querySelector('meta[name="twitter:description"]');
     if (twDesc) twDesc.setAttribute('content', tabSeo.desc);
+
+    // Dynamic Canonical URL update
+    const canonicalBase = 'https://bleustream.pages.dev';
+    const canonicalPath = currentTab === 'home' ? '/' : `/?tab=${currentTab}`;
+    let canonicalTag = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
+    if (!canonicalTag) {
+      canonicalTag = document.createElement('link');
+      canonicalTag.rel = 'canonical';
+      document.head.appendChild(canonicalTag);
+    }
+    canonicalTag.href = `${canonicalBase}${canonicalPath}`;
   }, [currentTab, activeMedia]);
 
   // CPA 15-second timer reference
@@ -487,6 +498,11 @@ export default function App() {
             onBack={() => setActiveMedia(null)}
             onSelectSimilar={(item) => handlePlayMedia(item)}
             onStreamStarted={handleStreamStarted}
+            onOpenGuide={(slug) => {
+              setSelectedArticleSlug(slug);
+              setCurrentTab('articles');
+              setActiveMedia(null);
+            }}
           />
         ) : (
           <>
@@ -1459,6 +1475,11 @@ export default function App() {
           }}
           onToggleWatchlist={toggleWatchlist}
           isInWatchlist={watchlistIds.has(detailMedia.id)}
+          onOpenGuide={(slug) => {
+            setSelectedArticleSlug(slug);
+            setCurrentTab('articles');
+            setDetailMedia(null);
+          }}
         />
       )}
 

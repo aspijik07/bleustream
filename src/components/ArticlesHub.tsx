@@ -20,11 +20,16 @@ import {
   Compass,
   Check,
   ShieldCheck,
+  ShieldAlert,
+  AlertTriangle,
   Zap,
   ExternalLink,
+  Volume2,
+  Building2,
 } from 'lucide-react';
-import { SEO_ARTICLES, SEOArticle } from '../data/seoArticles';
+import { SEO_ARTICLES, SEOArticle, SimilarTitleItem } from '../data/seoArticles';
 import { pseoEngine } from '../services/pseoEngine';
+import { fetchDetails, fetchCredits, fetchSimilar, getPosterUrl } from '../services/tmdb';
 
 interface ArticlesHubProps {
   initialSlug?: string | null;
@@ -52,6 +57,7 @@ export const ArticlesHub: React.FC<ArticlesHubProps> = ({
   const [activeCategory, setActiveCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [copied, setCopied] = useState<boolean>(false);
+  const [liveSimilar, setLiveSimilar] = useState<SimilarTitleItem[]>([]);
 
   // Sync with dynamic pSEO articles
   useEffect(() => {
@@ -70,19 +76,101 @@ export const ArticlesHub: React.FC<ArticlesHubProps> = ({
     }
   }, [initialSlug]);
 
-  // Scroll to top and inject Schema.org JSON-LD when viewing article
+  // Fetch live TMDB recommendations if needed
+  useEffect(() => {
+    if (!selectedArticle) {
+      setLiveSimilar([]);
+      return;
+    }
+
+    if (selectedArticle.relatedMediaId) {
+      fetchSimilar(selectedArticle.relatedMediaType, selectedArticle.relatedMediaId)
+        .then((items) => {
+          if (items && items.length > 0) {
+            const formatted: SimilarTitleItem[] = items.slice(0, 6).map((item) => ({
+              id: item.id,
+              title: item.title || item.name || 'Similar Title',
+              mediaType: (item.media_type as 'movie' | 'tv') || selectedArticle.relatedMediaType,
+              posterPath: getPosterUrl(item.poster_path, 'w500'),
+              rating: `${(item.vote_average || 8.0).toFixed(1)}/10`,
+              year: (item.release_date || item.first_air_date || '').slice(0, 4) || '2024',
+            }));
+            setLiveSimilar(formatted);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [selectedArticle]);
+
+  // Scroll to top and inject Schema.org JSON-LD, OpenGraph & Canonical meta tags
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    const setMeta = (nameOrProp: string, val: string, isProp = false) => {
+      let el = document.querySelector(
+        isProp ? `meta[property="${nameOrProp}"]` : `meta[name="${nameOrProp}"]`
+      ) as HTMLMetaElement | null;
+      if (!el) {
+        el = document.createElement('meta');
+        if (isProp) el.setAttribute('property', nameOrProp);
+        else el.setAttribute('name', nameOrProp);
+        document.head.appendChild(el);
+      }
+      el.setAttribute('content', val);
+    };
 
     if (!selectedArticle) {
       document.title =
         'Cinema Guides & Streaming Articles – Watch Movies Free in HD | BleuStream';
+      const hubCanonical = 'https://bleustream.pages.dev/?tab=articles';
+      let canonicalTag = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
+      if (!canonicalTag) {
+        canonicalTag = document.createElement('link');
+        canonicalTag.rel = 'canonical';
+        document.head.appendChild(canonicalTag);
+      }
+      canonicalTag.href = hubCanonical;
+
+      setMeta('og:title', 'Cinema Guides & Streaming Articles | BleuStream', true);
+      setMeta(
+        'og:description',
+        'Explore verified cinema guides, chronological watch orders, and streaming reviews for trending movies and anime.',
+        true
+      );
+      setMeta('og:url', hubCanonical, true);
       return;
     }
 
     document.title = selectedArticle.metaTitle;
     const metaDesc = document.querySelector('meta[name="description"]');
     if (metaDesc) metaDesc.setAttribute('content', selectedArticle.metaDescription);
+
+    // Dynamic Canonical Tag
+    const canonicalHref = `https://bleustream.pages.dev/?tab=articles&article=${selectedArticle.slug}`;
+    let canonicalTag = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
+    if (!canonicalTag) {
+      canonicalTag = document.createElement('link');
+      canonicalTag.rel = 'canonical';
+      document.head.appendChild(canonicalTag);
+    }
+    canonicalTag.href = canonicalHref;
+
+    // Dynamic Open Graph Tags
+    setMeta('og:title', selectedArticle.metaTitle, true);
+    setMeta('og:description', selectedArticle.metaDescription, true);
+    setMeta('og:image', selectedArticle.coverImage, true);
+    setMeta('og:url', canonicalHref, true);
+    setMeta(
+      'og:type',
+      selectedArticle.relatedMediaType === 'tv' ? 'video.tv_show' : 'video.movie',
+      true
+    );
+
+    // Dynamic Twitter Card Tags
+    setMeta('twitter:card', 'summary_large_image', false);
+    setMeta('twitter:title', selectedArticle.metaTitle, false);
+    setMeta('twitter:description', selectedArticle.metaDescription, false);
+    setMeta('twitter:image', selectedArticle.coverImage, false);
 
     // Dynamic Schema.org JSON-LD injection for Google Rich Snippets
     let scriptTag = document.getElementById(
@@ -94,6 +182,21 @@ export const ArticlesHub: React.FC<ArticlesHubProps> = ({
       scriptTag.type = 'application/ld+json';
       document.head.appendChild(scriptTag);
     }
+
+    const releaseYear =
+      selectedArticle.specs?.releaseYear ||
+      selectedArticle.publishedDate.slice(0, 4);
+    const schemaMediaType =
+      selectedArticle.category === 'Anime Guides'
+        ? 'TVSeries'
+        : selectedArticle.relatedMediaType === 'tv'
+        ? 'TVSeries'
+        : 'Movie';
+
+    const topActorsList =
+      selectedArticle.topActors && selectedArticle.topActors.length > 0
+        ? selectedArticle.topActors
+        : ['Principal Lead Actor', 'Supporting Co-Star', 'Ensemble Cast'];
 
     const jsonLd = {
       '@context': 'https://schema.org',
@@ -117,26 +220,24 @@ export const ArticlesHub: React.FC<ArticlesHubProps> = ({
           description: selectedArticle.excerpt,
         },
         {
-          '@type':
-            selectedArticle.relatedMediaType === 'tv' ? 'TVSeries' : 'Movie',
-          name: selectedArticle.relatedMediaTitle,
+          '@type': schemaMediaType,
+          name: selectedArticle.relatedMediaTitle || selectedArticle.title,
           image: selectedArticle.coverImage,
+          description: selectedArticle.metaDescription || selectedArticle.excerpt,
+          datePublished: releaseYear,
           aggregateRating: {
             '@type': 'AggregateRating',
             ratingValue: parseFloat(selectedArticle.rating) || 8.6,
             bestRating: '10',
-            ratingCount: 1540,
+            ratingCount: 2450,
           },
-        },
-        {
-          '@type': 'FAQPage',
-          mainEntity: selectedArticle.faqs.map((f) => ({
-            '@type': 'Question',
-            name: f.question,
-            acceptedAnswer: {
-              '@type': 'Answer',
-              text: f.answer,
-            },
+          director: {
+            '@type': 'Person',
+            name: selectedArticle.director || 'Visionary Film Director',
+          },
+          actor: topActorsList.slice(0, 5).map((actorName) => ({
+            '@type': 'Person',
+            name: actorName,
           })),
         },
         {
@@ -151,16 +252,35 @@ export const ArticlesHub: React.FC<ArticlesHubProps> = ({
             {
               '@type': 'ListItem',
               position: 2,
-              name: 'Articles Hub',
+              name: 'Cinema Guides',
               item: 'https://bleustream.pages.dev/?tab=articles',
             },
             {
               '@type': 'ListItem',
               position: 3,
-              name: selectedArticle.title,
-              item: `https://bleustream.pages.dev/?tab=articles&article=${selectedArticle.slug}`,
+              name: selectedArticle.category,
+              item: `https://bleustream.pages.dev/?tab=articles&category=${encodeURIComponent(
+                selectedArticle.category
+              )}`,
+            },
+            {
+              '@type': 'ListItem',
+              position: 4,
+              name: selectedArticle.relatedMediaTitle || selectedArticle.title,
+              item: canonicalHref,
             },
           ],
+        },
+        {
+          '@type': 'FAQPage',
+          mainEntity: selectedArticle.faqs.map((f) => ({
+            '@type': 'Question',
+            name: f.question,
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: f.answer,
+            },
+          })),
         },
       ],
     };
@@ -212,6 +332,29 @@ export const ArticlesHub: React.FC<ArticlesHubProps> = ({
       .filter((a) => a.id !== selectedArticle.id)
       .slice(0, 6);
   }, [articlesList, selectedArticle]);
+
+  // Computed Similar Titles for pSEO "Movies Like X" pattern
+  const displaySimilarTitles = useMemo<SimilarTitleItem[]>(() => {
+    if (!selectedArticle) return [];
+    if (selectedArticle.similarTitles && selectedArticle.similarTitles.length > 0) {
+      return selectedArticle.similarTitles.slice(0, 4);
+    }
+    if (liveSimilar && liveSimilar.length > 0) {
+      return liveSimilar.slice(0, 4);
+    }
+    return articlesList
+      .filter((a) => a.id !== selectedArticle.id && a.relatedMediaId !== selectedArticle.relatedMediaId)
+      .slice(0, 4)
+      .map((a) => ({
+        id: a.relatedMediaId,
+        title: a.relatedMediaTitle || a.title.split('–')[0],
+        mediaType: a.relatedMediaType,
+        posterPath: a.coverImage,
+        rating: a.rating,
+        year: a.publishedDate.slice(0, 4),
+        slug: a.slug,
+      }));
+  }, [selectedArticle, liveSimilar, articlesList]);
 
   const handleShare = (art: SEOArticle) => {
     const url = `https://bleustream.pages.dev/?tab=articles&article=${encodeURIComponent(
@@ -364,23 +507,171 @@ export const ArticlesHub: React.FC<ArticlesHubProps> = ({
             </div>
           </div>
 
-          {/* Quick Technical Specs Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="p-3 bg-zinc-900/80 border border-zinc-800 rounded-xl space-y-1">
-              <span className="text-[10px] uppercase font-bold text-zinc-500">Quality</span>
-              <p className="text-xs font-black text-white">4K UHD & 1080p</p>
+          {/* Quick Specs Bar (Runtime, Age Rating, Studio, Audio/Subs) */}
+          <div className="p-4 bg-zinc-900/90 border border-zinc-800 rounded-2xl shadow-lg grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {/* Runtime */}
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-xl bg-red-950/60 border border-red-500/30 text-red-400 shrink-0">
+                <Clock className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <span className="text-[10px] uppercase font-bold text-zinc-400 block tracking-wider">
+                  Runtime
+                </span>
+                <span className="text-xs font-bold text-white truncate block">
+                  {selectedArticle.specs?.runtime ||
+                    (selectedArticle.relatedMediaType === 'tv'
+                      ? '45-60m / ep'
+                      : '118 min')}
+                </span>
+              </div>
             </div>
-            <div className="p-3 bg-zinc-900/80 border border-zinc-800 rounded-xl space-y-1">
-              <span className="text-[10px] uppercase font-bold text-zinc-500">Audio Tracks</span>
-              <p className="text-xs font-black text-white">Dolby 5.1 & Stereo</p>
+
+            {/* Age Rating / Certification */}
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-xl bg-amber-950/60 border border-amber-500/30 text-amber-400 shrink-0">
+                <ShieldAlert className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <span className="text-[10px] uppercase font-bold text-zinc-400 block tracking-wider">
+                  Certification
+                </span>
+                <span className="text-xs font-bold text-amber-300 font-mono">
+                  {selectedArticle.specs?.certification || 'PG-13'}
+                </span>
+              </div>
             </div>
-            <div className="p-3 bg-zinc-900/80 border border-zinc-800 rounded-xl space-y-1">
-              <span className="text-[10px] uppercase font-bold text-zinc-500">Subtitles</span>
-              <p className="text-xs font-black text-white">EN, FR, ES, AR, DE</p>
+
+            {/* Studio / Network */}
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-xl bg-sky-950/60 border border-sky-500/30 text-sky-400 shrink-0">
+                <Building2 className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <span className="text-[10px] uppercase font-bold text-zinc-400 block tracking-wider">
+                  Studio / Network
+                </span>
+                <span
+                  className="text-xs font-bold text-white truncate block"
+                  title={selectedArticle.specs?.studio}
+                >
+                  {selectedArticle.specs?.studio ||
+                    (selectedArticle.category === 'Anime Guides'
+                      ? 'ufotable / MAPPA'
+                      : 'Universal / Warner Bros.')}
+                </span>
+              </div>
             </div>
-            <div className="p-3 bg-zinc-900/80 border border-zinc-800 rounded-xl space-y-1">
-              <span className="text-[10px] uppercase font-bold text-zinc-500">CDN Status</span>
-              <p className="text-xs font-black text-emerald-400">7 Mirrors Online</p>
+
+            {/* Audio & Subtitles Status */}
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-xl bg-emerald-950/60 border border-emerald-500/30 text-emerald-400 shrink-0">
+                <Volume2 className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <span className="text-[10px] uppercase font-bold text-zinc-400 block tracking-wider">
+                  Audio & Subs
+                </span>
+                <span className="text-xs font-bold text-emerald-400 truncate block">
+                  {selectedArticle.specs?.audioSubStatus || 'Dolby 5.1 / Multi-Sub'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Parental Guide & Content Warning Block */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-400" />
+                <span className="text-xs sm:text-sm font-black text-white uppercase tracking-wider">
+                  Parental Guide & Content Warning
+                </span>
+              </div>
+              <span
+                className={`px-2.5 py-0.5 rounded-full text-xs font-black uppercase tracking-wider border ${
+                  selectedArticle.contentWarning?.level === 'Family Friendly'
+                    ? 'bg-emerald-950/70 border-emerald-500/50 text-emerald-300'
+                    : selectedArticle.contentWarning?.level === 'Mature 18+'
+                    ? 'bg-red-950/70 border-red-500/50 text-red-300'
+                    : 'bg-amber-950/70 border-amber-500/50 text-amber-300'
+                }`}
+              >
+                {selectedArticle.contentWarning?.level || 'Moderate (PG-13)'}
+              </span>
+            </div>
+
+            <p className="text-xs text-zinc-300 leading-relaxed">
+              {selectedArticle.contentWarning?.summary ||
+                'Parental advisory: May contain intense cinema action sequences, thematic suspense, and language.'}
+            </p>
+
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {(
+                selectedArticle.contentWarning?.tags || [
+                  'Action Violence',
+                  'Thematic Peril',
+                  'English Sub & Dub',
+                ]
+              ).map((tag, tIdx) => (
+                <span
+                  key={tIdx}
+                  className="px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-[10px] font-medium text-zinc-300"
+                >
+                  ⚠️ {tag}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* Availability / Streaming Status Block */}
+          <div className="p-5 rounded-2xl bg-gradient-to-r from-zinc-900/90 via-zinc-900/60 to-black border border-emerald-500/30 space-y-3 shadow-lg">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-xs sm:text-sm font-black text-white uppercase tracking-wider">
+                  Availability & Streaming Status
+                </span>
+              </div>
+              <span className="px-2.5 py-0.5 rounded text-[10px] font-black bg-emerald-900/60 text-emerald-300 border border-emerald-500/40 uppercase">
+                {selectedArticle.streamingStatus?.qualityBadge ||
+                  '4K Ultra HD & 1080p'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+              <div className="p-2.5 rounded-xl bg-zinc-950/80 border border-zinc-800/80 space-y-0.5">
+                <span className="text-[10px] text-zinc-500 font-bold uppercase block">
+                  HD Cloud Mirrors
+                </span>
+                <span className="text-zinc-200 font-semibold flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                  {selectedArticle.streamingStatus?.hdMirrorsStatus ||
+                    '7 Live Fast Mirrors Online'}
+                </span>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-zinc-950/80 border border-zinc-800/80 space-y-0.5">
+                <span className="text-[10px] text-zinc-500 font-bold uppercase block">
+                  Audio & Dub Status
+                </span>
+                <span className="text-zinc-200 font-semibold flex items-center gap-1.5">
+                  <Volume2 className="w-3.5 h-3.5 text-sky-400" />
+                  {selectedArticle.streamingStatus?.audioAvailable ||
+                    'Stereo 5.1 & Multi-Subtitles'}
+                </span>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-zinc-950/80 border border-zinc-800/80 space-y-0.5">
+                <span className="text-[10px] text-zinc-500 font-bold uppercase block">
+                  BleuStream Access
+                </span>
+                <span className="text-emerald-300 font-semibold flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  {selectedArticle.streamingStatus?.officialAvailability ||
+                    '100% Free / Zero Buffering'}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -475,6 +766,197 @@ export const ArticlesHub: React.FC<ArticlesHubProps> = ({
               </div>
             </div>
           )}
+
+          {/* Chronological Watch Order Block for Franchises & Anime */}
+          {selectedArticle.franchiseWatchOrder && (
+            <div className="p-6 sm:p-7 rounded-2xl bg-zinc-900/60 border border-red-500/40 space-y-4 shadow-xl">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800 pb-3">
+                <div>
+                  <h3 className="text-lg sm:text-xl font-black text-white flex items-center gap-2">
+                    <Layers className="w-5 h-5 text-red-500" />
+                    <span>{selectedArticle.franchiseWatchOrder.franchiseName}</span>
+                  </h3>
+                  <p className="text-xs text-zinc-400 mt-1">
+                    {selectedArticle.franchiseWatchOrder.description}
+                  </p>
+                </div>
+                <span className="px-3 py-1 bg-red-950/70 border border-red-500/50 text-red-300 text-[10px] font-black uppercase rounded-full tracking-wider">
+                  Chronological Watch Order
+                </span>
+              </div>
+
+              <div className="space-y-2.5 pt-1">
+                {selectedArticle.franchiseWatchOrder.order.map((step) => {
+                  const isCurrent =
+                    step.highlight ||
+                    (selectedArticle.relatedMediaId && step.mediaId === selectedArticle.relatedMediaId) ||
+                    (step.slug && step.slug === selectedArticle.slug);
+                  const linkedArticle = step.slug
+                    ? articlesList.find((a) => a.slug === step.slug)
+                    : step.mediaId
+                    ? articlesList.find((a) => a.relatedMediaId === step.mediaId)
+                    : null;
+
+                  return (
+                    <div
+                      key={step.step}
+                      className={`p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition ${
+                        isCurrent
+                          ? 'bg-red-950/40 border-red-500/70 shadow-lg shadow-red-950/30 ring-1 ring-red-500/30'
+                          : 'bg-zinc-950/70 border-zinc-800/80 hover:border-zinc-700'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black shrink-0 ${
+                            isCurrent
+                              ? 'bg-red-600 text-white'
+                              : 'bg-zinc-800 text-zinc-300 font-mono'
+                          }`}
+                        >
+                          {step.step}
+                        </span>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-xs sm:text-sm font-bold text-white">
+                              {step.title}
+                            </h4>
+                            {isCurrent && (
+                              <span className="px-1.5 py-0.5 bg-red-600 text-white text-[9px] font-black uppercase rounded tracking-wider">
+                                Current
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 text-[10px] text-zinc-400 mt-0.5">
+                            <span>{step.year}</span>
+                            <span>•</span>
+                            <span className="text-zinc-300 font-medium">{step.type}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        {step.mediaId && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onPlayMediaById(
+                                step.mediaId!,
+                                step.type === 'Movie' ? 'movie' : 'tv',
+                                step.title
+                              )
+                            }
+                            className="px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow active:scale-95"
+                          >
+                            <Play className="w-3.5 h-3.5 fill-white" />
+                            <span>Stream</span>
+                          </button>
+                        )}
+                        {linkedArticle && linkedArticle.slug !== selectedArticle.slug && (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenArticle(linkedArticle)}
+                            className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs rounded-lg transition cursor-pointer font-medium"
+                          >
+                            Read Guide
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* "Similar Titles / Watch Next" - Pattern pSEO "Movies Like X" */}
+          <div className="space-y-4 pt-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 className="text-lg sm:text-xl font-black text-white flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-amber-400" />
+                  <span>
+                    {selectedArticle.category === 'Anime Guides'
+                      ? 'Anime Like'
+                      : selectedArticle.relatedMediaType === 'tv'
+                      ? 'Series Like'
+                      : 'Movies Like'}{' '}
+                    {selectedArticle.relatedMediaTitle || selectedArticle.title.split('–')[0]} (Watch Next)
+                  </span>
+                </h3>
+                <p className="text-xs text-zinc-400 mt-0.5">
+                  High-rated recommendations matching the tone, storyline, and cinematic scope
+                </p>
+              </div>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-zinc-900 border border-zinc-700 text-zinc-300">
+                Verified HD Streams
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+              {displaySimilarTitles.map((sim, sIdx) => {
+                const existingGuide = articlesList.find(
+                  (a) =>
+                    a.relatedMediaId === sim.id ||
+                    (sim.slug && a.slug === sim.slug) ||
+                    a.relatedMediaTitle.toLowerCase() === sim.title.toLowerCase()
+                );
+
+                return (
+                  <div
+                    key={sIdx}
+                    className="p-3 bg-zinc-900/60 border border-zinc-800 hover:border-red-500/50 rounded-xl transition-all duration-200 group flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="relative aspect-video rounded-lg overflow-hidden mb-2.5 bg-black">
+                        <img
+                          src={
+                            sim.posterPath ||
+                            (existingGuide
+                              ? existingGuide.coverImage
+                              : selectedArticle.coverImage)
+                          }
+                          alt={sim.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                        <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[9px] font-black bg-black/80 text-amber-400 flex items-center gap-0.5">
+                          <Star className="w-2.5 h-2.5 fill-amber-400" />
+                          {sim.rating}
+                        </span>
+                      </div>
+                      <h4 className="text-xs font-bold text-white group-hover:text-red-300 line-clamp-1">
+                        {sim.title}
+                      </h4>
+                      <span className="text-[10px] text-zinc-500 block mt-0.5">
+                        {sim.year} • {sim.mediaType === 'tv' ? 'TV Series' : 'Movie'}
+                      </span>
+                    </div>
+
+                    <div className="pt-2.5 mt-2.5 border-t border-zinc-800 flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => onPlayMediaById(sim.id, sim.mediaType, sim.title)}
+                        className="flex-1 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold text-[11px] rounded-lg transition flex items-center justify-center gap-1 cursor-pointer active:scale-95"
+                      >
+                        <Play className="w-3 h-3 fill-white" />
+                        <span>Watch</span>
+                      </button>
+                      {existingGuide && (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenArticle(existingGuide)}
+                          className="px-2 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white text-[11px] font-medium rounded-lg transition cursor-pointer"
+                          title="Read Guide"
+                        >
+                          Guide
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
 
           {/* Bottom Stream Call-To-Action with Big RED Launch Button */}
           <div className="p-8 sm:p-10 rounded-2xl bg-gradient-to-r from-red-950/70 via-zinc-950 to-black border border-red-500/50 text-center space-y-4 shadow-2xl">
